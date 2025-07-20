@@ -10,6 +10,7 @@ interface ConversationSidebarProps {
   onSelectConversation: (conversation: Conversation) => void;
   onNewConversation: () => void;
   onDeleteConversation: (conversationId: string) => void;
+  isDesktop?: boolean;
 }
 
 const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
@@ -20,6 +21,7 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  isDesktop = false,
 }) => {
   const formatDate = (date: Date) => {
     const now = new Date();
@@ -42,8 +44,8 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
 
   return (
     <>
-      {/* Overlay for both mobile and desktop */}
-      {isOpen && (
+      {/* Overlay for mobile only */}
+      {isOpen && !isDesktop && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={onClose}
@@ -51,8 +53,12 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       )}
 
       {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full w-80 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 z-50 ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
+      <div className={`${
+        isDesktop 
+          ? 'relative h-full w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700' 
+          : `fixed left-0 top-0 h-full w-80 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 z-50 ${
+              isOpen ? 'translate-x-0' : '-translate-x-full'
+            }`
       }`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -67,7 +73,9 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              className={`p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors ${
+                isDesktop ? '' : ''
+              }`}
             >
               <X className="h-4 w-4 text-gray-600 dark:text-gray-400" />
             </button>

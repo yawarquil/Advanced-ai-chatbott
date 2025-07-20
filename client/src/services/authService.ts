@@ -19,7 +19,7 @@ export class AuthService {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const response = await fetch(url, {
+    const response = await fetch(`${window.location.origin}${url}`, {
       ...options,
       headers,
     });

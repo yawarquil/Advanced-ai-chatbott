@@ -55,6 +55,7 @@ const App: React.FC = () => {
   const authService = useRef<AuthService | null>(null);
   const databaseService = useRef<DatabaseService | null>(null);
   const imageService = useRef(new ImageService());
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
   // Initialize services
   useEffect(() => {
@@ -69,6 +70,16 @@ const App: React.FC = () => {
 
   // Apply theme
   useTheme(settings);
+
+  // Handle window resize for responsive sidebar
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Auth state management
   useEffect(() => {
@@ -144,10 +155,11 @@ const App: React.FC = () => {
       setConversations(loadedConversations);
 
       if (loadedSettings.persistHistory) {
-        const currentMessages = storageService.current.loadCurrentConversation();
-        if (currentMessages.length > 0) {
-          setChatState(prev => ({ ...prev, messages: currentMessages }));
-        } else {
+        // Always load current conversation for authenticated users
+        const currentMessages = await databaseService.current.loadCurrentConversation(authState.user.id);
+        setChatState(prev => ({ ...prev, messages: currentMessages }));
+        
+        if (currentMessages.length === 0) {
           addWelcomeMessage();
         }
       } else {
@@ -567,15 +579,31 @@ const App: React.FC = () => {
         />
 
         {/* Sidebar */}
-        <ConversationSidebar
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          conversations={conversations}
-          currentConversationId={currentConversationId}
-          onSelectConversation={handleSelectConversation}
-          onNewConversation={handleNewConversation}
-          onDeleteConversation={handleDeleteConversation}
-        />
+        {isDesktop ? (
+          <div className={`transition-all duration-300 ${isSidebarOpen ? 'w-80' : 'w-0'} overflow-hidden`}>
+            <ConversationSidebar
+              isOpen={isSidebarOpen}
+              onClose={() => setIsSidebarOpen(false)}
+              conversations={conversations}
+              currentConversationId={currentConversationId}
+              onSelectConversation={handleSelectConversation}
+              onNewConversation={handleNewConversation}
+              onDeleteConversation={handleDeleteConversation}
+              isDesktop={true}
+            />
+          </div>
+        ) : (
+          <ConversationSidebar
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+            conversations={conversations}
+            currentConversationId={currentConversationId}
+            onSelectConversation={handleSelectConversation}
+            onNewConversation={handleNewConversation}
+            onDeleteConversation={handleDeleteConversation}
+            isDesktop={false}
+          />
+        )}
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col">
