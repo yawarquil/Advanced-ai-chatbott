@@ -18,14 +18,13 @@ export interface ChatState {
 
 export interface Settings {
   theme: 'light' | 'dark' | 'blue' | 'purple';
-  aiModel: 'gemini' | 'gpt' | 'claude';
+  aiModel: 'gemini' | 'openrouter' | 'perplexity' | 'groq' | 'huggingface' | 'anyscale';
   voiceEnabled: boolean;
   selectedVoice: string;
   voiceSpeed: number;
   voicePitch: number;
   autoScroll: boolean;
   persistHistory: boolean;
-  imageGeneration: boolean;
   imageGeneration: boolean;
 }
 

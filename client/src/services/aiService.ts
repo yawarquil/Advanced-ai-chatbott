@@ -77,8 +77,145 @@ export class GeminiProvider implements AIProvider {
   }
 }
 
-// Free GPT Provider using Hugging Face Inference API
-export class GPTProvider implements AIProvider {
+// OpenRouter Provider
+export class OpenRouterProvider implements AIProvider {
+  private readonly apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+
+  constructor() {
+    // No API key required for free models
+  }
+
+  getName(): string {
+    return 'OpenRouter (Mistral 7B)';
+  }
+
+  async generateResponse(message: string): Promise<string> {
+    try {
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'AI Chat Assistant',
+        },
+        body: JSON.stringify({
+          model: 'mistralai/mistral-7b-instruct:free',
+          messages: [
+            {
+              role: 'user',
+              content: message,
+            },
+          ],
+          max_tokens: 1024,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenRouter API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+    } catch (error) {
+      console.error('OpenRouter API error:', error);
+      throw new Error('Failed to get response from OpenRouter. Please try again.');
+    }
+  }
+}
+
+// Perplexity Provider
+export class PerplexityProvider implements AIProvider {
+  private readonly apiUrl = 'https://api.perplexity.ai/chat/completions';
+
+  constructor() {
+    // Using public models that don't require API key
+  }
+
+  getName(): string {
+    return 'Perplexity (Mixtral 8x7B)';
+  }
+
+  async generateResponse(message: string): Promise<string> {
+    try {
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'mixtral-8x7b-instruct',
+          messages: [
+            {
+              role: 'user',
+              content: message,
+            },
+          ],
+          max_tokens: 1024,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Perplexity API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+    } catch (error) {
+      console.error('Perplexity API error:', error);
+      throw new Error('Failed to get response from Perplexity. Please try again.');
+    }
+  }
+}
+
+// Groq Provider
+export class GroqProvider implements AIProvider {
+  private readonly apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+
+  constructor() {
+    // No API key required for free tier
+  }
+
+  getName(): string {
+    return 'Groq (Mixtral 8x7B)';
+  }
+
+  async generateResponse(message: string): Promise<string> {
+    try {
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'mixtral-8x7b-32768',
+          messages: [
+            {
+              role: 'user',
+              content: message,
+            },
+          ],
+          max_tokens: 1024,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Groq API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+    } catch (error) {
+      console.error('Groq API error:', error);
+      throw new Error('Failed to get response from Groq. Please try again.');
+    }
+  }
+}
+
+// HuggingFace Provider
+export class HuggingFaceProvider implements AIProvider {
   private readonly apiUrl = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-large';
 
   constructor() {
@@ -86,7 +223,7 @@ export class GPTProvider implements AIProvider {
   }
 
   getName(): string {
-    return 'DialoGPT Large (Free)';
+    return 'HuggingFace (DialoGPT)';
   }
 
   async generateResponse(message: string): Promise<string> {
@@ -107,14 +244,12 @@ export class GPTProvider implements AIProvider {
       });
 
       if (!response.ok) {
-        // If Hugging Face is rate limited, try alternative approach
-        return this.generateFallbackResponse(message);
+        throw new Error(`HuggingFace API error: ${response.status}`);
       }
 
       const data = await response.json();
       
       if (Array.isArray(data) && data[0]?.generated_text) {
-        // Clean up the response to remove the input prompt
         let responseText = data[0].generated_text;
         if (responseText.startsWith(message)) {
           responseText = responseText.substring(message.length).trim();
@@ -122,188 +257,56 @@ export class GPTProvider implements AIProvider {
         return responseText || "I understand your message. Could you please rephrase or ask something else?";
       }
       
-      return this.generateFallbackResponse(message);
+      return "I understand what you're saying. Could you tell me more about that?";
     } catch (error) {
-      console.error('GPT Provider error:', error);
-      return this.generateFallbackResponse(message);
+      console.error('HuggingFace API error:', error);
+      throw new Error('Failed to get response from HuggingFace. Please try again.');
     }
-  }
-
-  private generateFallbackResponse(message: string): string {
-    // Simple rule-based fallback responses
-    const lowerMessage = message.toLowerCase();
-    
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-      return "Hello! How can I help you today?";
-    }
-    if (lowerMessage.includes('help')) {
-      return "I'm here to help! You can ask me questions about various topics, request explanations, or just chat.";
-    }
-    if (lowerMessage.includes('what') || lowerMessage.includes('how') || lowerMessage.includes('why')) {
-      return "That's an interesting question! While I may not have all the answers, I'd be happy to discuss this topic with you.";
-    }
-    if (lowerMessage.includes('thank')) {
-      return "You're welcome! Is there anything else I can help you with?";
-    }
-    
-    return "I understand what you're saying. Could you tell me more about that or ask me something specific I can help with?";
   }
 }
 
-// Reliable Free AI Provider with Multiple Services
-export class ClaudeProvider implements AIProvider {
-  private readonly services = [
-    {
-      name: 'Together AI',
-      url: 'https://api.together.xyz/v1/chat/completions',
-      model: 'meta-llama/Llama-2-7b-chat-hf'
-    },
-    {
-      name: 'Hugging Face',
-      url: 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-large',
-      model: 'dialogpt'
-    }
-  ];
+// AnyScale Provider
+export class AnyScaleProvider implements AIProvider {
+  private readonly apiUrl = 'https://api.endpoints.anyscale.com/v1/chat/completions';
 
   constructor() {
-    // No API key required for basic usage
+    // Free tier available
   }
 
   getName(): string {
-    return 'Smart AI (Free)';
+    return 'AnyScale (Llama 3 8B)';
   }
 
   async generateResponse(message: string): Promise<string> {
-    // Try different AI services in order
-    for (const service of this.services) {
-      try {
-        const response = await this.tryService(service, message);
-        if (response) {
-          return response;
-        }
-      } catch (error) {
-        console.warn(`${service.name} failed, trying next service...`);
-        continue;
-      }
-    }
-
-    // If all services fail, use intelligent fallback
-    return this.generateIntelligentResponse(message);
-  }
-
-  private async tryService(service: any, message: string): Promise<string | null> {
     try {
-      if (service.model === 'dialogpt') {
-        return await this.tryHuggingFace(service.url, message);
-      } else {
-        return await this.tryOpenAIFormat(service, message);
-      }
-    } catch (error) {
-      return null;
-    }
-  }
-
-  private async tryOpenAIFormat(service: any, message: string): Promise<string | null> {
-    const response = await fetch(service.url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: service.model,
-        messages: [{ role: 'user', content: message }],
-        max_tokens: 1024,
-        temperature: 0.7,
-      }),
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || null;
-  }
-
-  private async tryHuggingFace(url: string, message: string): Promise<string | null> {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        inputs: message,
-        parameters: {
-          max_length: 512,
-          temperature: 0.8,
-          do_sample: true,
-          return_full_text: false,
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      }),
-    });
+        body: JSON.stringify({
+          model: 'meta-llama/Llama-3-8b-chat-hf',
+          messages: [
+            {
+              role: 'user',
+              content: message,
+            },
+          ],
+          max_tokens: 1024,
+          temperature: 0.7,
+        }),
+      });
 
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    if (Array.isArray(data) && data[0]?.generated_text) {
-      let responseText = data[0].generated_text;
-      if (responseText.startsWith(message)) {
-        responseText = responseText.substring(message.length).trim();
+      if (!response.ok) {
+        throw new Error(`AnyScale API error: ${response.status}`);
       }
-      return responseText || null;
-    }
-    return null;
-  }
 
-  private generateIntelligentResponse(message: string): string {
-    const lowerMessage = message.toLowerCase();
-    
-    // Greeting responses
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
-      return "Hello! I'm here to help you with any questions or tasks you have. What would you like to know about?";
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+    } catch (error) {
+      console.error('AnyScale API error:', error);
+      throw new Error('Failed to get response from AnyScale. Please try again.');
     }
-    
-    // Programming and technical questions
-    if (lowerMessage.includes('code') || lowerMessage.includes('program') || lowerMessage.includes('javascript') || lowerMessage.includes('python') || lowerMessage.includes('html') || lowerMessage.includes('css')) {
-      return "I'd be happy to help with programming! I can assist with:\n\n• Writing and debugging code\n• Explaining programming concepts\n• Code reviews and optimization\n• Framework and library guidance\n\nCould you share more details about what you're working on?";
-    }
-    
-    // Math and calculations
-    if (lowerMessage.includes('calculate') || lowerMessage.includes('math') || /\d+[\+\-\*\/]\d+/.test(message)) {
-      try {
-        // Try to evaluate simple math expressions
-        const mathMatch = message.match(/(\d+[\+\-\*\/\(\)\s\d\.]+\d+)/);
-        if (mathMatch) {
-          const expr = mathMatch[1].replace(/[^0-9\+\-\*\/\(\)\.\s]/g, '');
-          const result = Function(`"use strict"; return (${expr})`)();
-          return `The answer is: ${result}\n\nI can help with more complex math problems too. Just describe what you need!`;
-        }
-      } catch (error) {
-        // Fall through to general math response
-      }
-      return "I can help with mathematical calculations and problem-solving. Please share the specific problem or equation you'd like me to work on.";
-    }
-    
-    // Questions and explanations
-    if (lowerMessage.includes('what') || lowerMessage.includes('how') || lowerMessage.includes('why') || lowerMessage.includes('explain')) {
-      return "I'd be glad to explain that! I can help with:\n\n• Concepts and definitions\n• Step-by-step explanations\n• Technical topics\n• General knowledge\n\nCould you be more specific about what you'd like me to explain?";
-    }
-    
-    // Creative writing
-    if (lowerMessage.includes('write') || lowerMessage.includes('story') || lowerMessage.includes('creative') || lowerMessage.includes('essay')) {
-      return "I love helping with creative writing! I can assist with:\n\n• Stories and narratives\n• Essays and articles\n• Character development\n• Plot ideas\n• Writing tips and techniques\n\nWhat kind of writing project are you working on?";
-    }
-    
-    // Help requests
-    if (lowerMessage.includes('help') || lowerMessage.includes('assist') || lowerMessage.includes('support')) {
-      return "I'm here to help! I can assist you with:\n\n• Programming and web development\n• Math and problem-solving\n• Writing and creative projects\n• Explanations and learning\n• General questions and research\n\nWhat would you like to work on together?";
-    }
-    
-    // Thank you responses
-    if (lowerMessage.includes('thank') || lowerMessage.includes('thanks')) {
-      return "You're very welcome! I'm happy to help. Is there anything else you'd like to know or work on?";
-    }
-    
-    // Default intelligent response
-    return `I understand you're asking about "${message}". While I may not have access to real-time AI services right now, I'm still here to help! \n\nI can assist with:\n• Programming and technical questions\n• Math and calculations\n• Writing and creative projects\n• Explanations and learning\n\nCould you tell me more about what specific help you need?`;
   }
 }
 
@@ -319,15 +322,33 @@ export class AIService {
     }
 
     try {
-      this.providers.set('gpt', new GPTProvider());
+      this.providers.set('openrouter', new OpenRouterProvider());
     } catch (error) {
-      console.warn('GPT provider not available:', error);
+      console.warn('OpenRouter provider not available:', error);
     }
 
     try {
-      this.providers.set('claude', new ClaudeProvider());
+      this.providers.set('perplexity', new PerplexityProvider());
     } catch (error) {
-      console.warn('Claude provider not available:', error);
+      console.warn('Perplexity provider not available:', error);
+    }
+
+    try {
+      this.providers.set('groq', new GroqProvider());
+    } catch (error) {
+      console.warn('Groq provider not available:', error);
+    }
+
+    try {
+      this.providers.set('huggingface', new HuggingFaceProvider());
+    } catch (error) {
+      console.warn('HuggingFace provider not available:', error);
+    }
+
+    try {
+      this.providers.set('anyscale', new AnyScaleProvider());
+    } catch (error) {
+      console.warn('AnyScale provider not available:', error);
     }
   }
 

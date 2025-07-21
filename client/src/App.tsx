@@ -4,6 +4,7 @@ import Header from './components/Header';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import TypingIndicator from './components/TypingIndicator';
+import TypingMessage from './components/TypingMessage';
 import ErrorMessage from './components/ErrorMessage';
 import SettingsPanel from './components/SettingsPanel';
 import ConversationSidebar from './components/ConversationSidebar';
@@ -48,6 +49,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const aiService = useRef(new AIService());
@@ -357,11 +359,13 @@ const App: React.FC = () => {
           model: provider.getName(),
         };
 
+        // Add message and start typing effect
         setChatState(prev => ({
           ...prev,
           messages: [...prev.messages, aiMessage],
           isLoading: false,
         }));
+        setTypingMessageId(aiMessage.id);
       }
     } catch (error) {
       setChatState(prev => ({
@@ -371,6 +375,10 @@ const App: React.FC = () => {
         error: error instanceof Error ? error.message : 'Failed to get AI response',
       }));
     }
+  };
+
+  const handleTypingComplete = () => {
+    setTypingMessageId(null);
   };
 
   const handleRegenerate = async () => {
@@ -636,21 +644,30 @@ const App: React.FC = () => {
             <div className="h-full max-w-4xl mx-auto flex flex-col">
               <div className="flex-1 chat-container p-4 space-y-4">
                 {chatState.messages.map((message, index) => (
-                  <ChatMessage
-                    key={message.id}
-                    message={message}
-                    onRegenerate={
-                      message.type === 'ai' && index === chatState.messages.length - 1
-                        ? handleRegenerate
-                        : undefined
-                    }
-                    voiceEnabled={settings.voiceEnabled}
-                    voiceSettings={{
-                      selectedVoice: settings.selectedVoice,
-                      voiceSpeed: settings.voiceSpeed,
-                      voicePitch: settings.voicePitch,
-                    }}
-                  />
+                  message.type === 'ai' && message.id === typingMessageId ? (
+                    <TypingMessage
+                      key={message.id}
+                      message={message}
+                      onComplete={handleTypingComplete}
+                      typingSpeed={30}
+                    />
+                  ) : (
+                    <ChatMessage
+                      key={message.id}
+                      message={message}
+                      onRegenerate={
+                        message.type === 'ai' && index === chatState.messages.length - 1 && !typingMessageId
+                          ? handleRegenerate
+                          : undefined
+                      }
+                      voiceEnabled={settings.voiceEnabled}
+                      voiceSettings={{
+                        selectedVoice: settings.selectedVoice,
+                        voiceSpeed: settings.voiceSpeed,
+                        voicePitch: settings.voicePitch,
+                      }}
+                    />
+                  )
                 ))}
                 
                 {(chatState.isLoading || chatState.isGeneratingImage) && (
