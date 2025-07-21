@@ -155,8 +155,7 @@ const App: React.FC = () => {
       setConversations(loadedConversations);
 
       if (loadedSettings.persistHistory) {
-        // Always load current conversation for authenticated users
-        const currentMessages = await databaseService.current.loadCurrentConversation(authState.user.id);
+        const currentMessages = storageService.current.loadCurrentConversation();
         setChatState(prev => ({ ...prev, messages: currentMessages }));
         
         if (currentMessages.length === 0) {
