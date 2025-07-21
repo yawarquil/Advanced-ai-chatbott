@@ -3,6 +3,19 @@ export class VoiceService {
   private recognition: SpeechRecognition | null = null;
   private isListening = false;
   private availableVoices: SpeechSynthesisVoice[] = [];
+  private elevenLabsApiKey = 'sk_cb41062ce3bb479e81952df9973a7b08a5ec2df76513006d';
+  private elevenLabsVoices = [
+    { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (Male, Deep)', gender: 'Male' },
+    { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella (Female, Soft)', gender: 'Female' },
+    { id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold (Male, Crisp)', gender: 'Male' },
+    { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli (Female, Young)', gender: 'Female' },
+    { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh (Male, Young)', gender: 'Male' },
+    { id: 'CYw3kZ02Hs0563khs1Fj', name: 'Gigi (Female, Childlike)', gender: 'Female' },
+    { id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum (Male, Hoarse)', gender: 'Male' },
+    { id: 'IKne3meq5aSn9XLyUdCD', name: 'Charlie (Male, Casual)', gender: 'Male' },
+    { id: 'XB0fDUnXU5powFXDhCwa', name: 'Charlotte (Female, Seductive)', gender: 'Female' },
+    { id: 'oWAxZDx7w5VEj9dCyTzz', name: 'Grace (Female, Southern)', gender: 'Female' }
+  ];
 
   constructor() {
     this.synthesis = window.speechSynthesis;
@@ -33,31 +46,29 @@ export class VoiceService {
       this.availableVoices = this.synthesis.getVoices();
     }
 
-    // Curated list of high-quality voices with gender detection
-    const voiceList = this.availableVoices.map(voice => ({
+    // Combine ElevenLabs voices with system voices
+    const elevenLabsVoiceList = this.elevenLabsVoices.map(voice => ({
+      name: `ElevenLabs: ${voice.name}`,
+      lang: 'en-US',
+      gender: voice.gender,
+      isElevenLabs: true,
+      voiceId: voice.id
+    }));
+
+    // System voices
+    const systemVoiceList = this.availableVoices.map(voice => ({
       name: voice.name,
       lang: voice.lang,
       gender: this.detectGender(voice.name),
-      voice: voice
-    }));
+      voice: voice,
+      isElevenLabs: false
+    })).filter(v => v.lang.startsWith('en')); // English voices only
 
-    // Sort by quality and popularity
-    return voiceList
-      .filter(v => v.lang.startsWith('en')) // English voices only
-      .sort((a, b) => {
-        // Prioritize certain high-quality voices
-        const priority = ['Google', 'Microsoft', 'Apple', 'Amazon'];
-        const aPriority = priority.findIndex(p => a.name.includes(p));
-        const bPriority = priority.findIndex(p => b.name.includes(p));
-        
-        if (aPriority !== -1 && bPriority !== -1) return aPriority - bPriority;
-        if (aPriority !== -1) return -1;
-        if (bPriority !== -1) return 1;
-        
-        return a.name.localeCompare(b.name);
-      })
-      .slice(0, 15) // Limit to 15 best voices
-      .map(v => ({ name: v.name, lang: v.lang, gender: v.gender }));
+    // Combine and return (ElevenLabs first, then system voices)
+    return [
+      ...elevenLabsVoiceList,
+      ...systemVoiceList.slice(0, 10) // Limit system voices
+    ].map(v => ({ name: v.name, lang: v.lang, gender: v.gender }));
   }
 
   private detectGender(voiceName: string): string {
@@ -78,6 +89,14 @@ export class VoiceService {
     voiceName?: string;
   } = {}): Promise<void> {
     return new Promise((resolve, reject) => {
+      // Check if it's an ElevenLabs voice
+      if (options.voiceName && options.voiceName.startsWith('ElevenLabs:')) {
+        this.speakWithElevenLabs(text, options.voiceName)
+          .then(() => resolve())
+          .catch(reject);
+        return;
+      }
+
       if (!this.synthesis) {
         reject(new Error('Speech synthesis not supported'));
         return;
@@ -106,11 +125,70 @@ export class VoiceService {
     });
   }
 
+  // ElevenLabs Text-to-Speech
+  private async speakWithElevenLabs(text: string, voiceName: string): Promise<void> {
+    try {
+      // Extract voice ID from the voice name
+      const voiceDisplayName = voiceName.replace('ElevenLabs: ', '');
+      const voice = this.elevenLabsVoices.find(v => voiceDisplayName.includes(v.name.split(' ')[0]));
+      
+      if (!voice) {
+        throw new Error('Voice not found');
+      }
+
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice.id}`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': this.elevenLabsApiKey
+        },
+        body: JSON.stringify({
+          text: text,
+          model_id: 'eleven_monolingual_v1',
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.5
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`ElevenLabs API error: ${response.status}`);
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      
+      return new Promise((resolve, reject) => {
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          resolve();
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          reject(new Error('Audio playback failed'));
+        };
+        audio.play().catch(reject);
+      });
+    } catch (error) {
+      console.error('ElevenLabs TTS error:', error);
+      throw new Error('Failed to generate speech with ElevenLabs');
+    }
+  }
+
   // Stop current speech
   stopSpeaking(): void {
     if (this.synthesis) {
       this.synthesis.cancel();
     }
+    // Also stop any playing audio elements
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach(audio => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
   }
 
   // Speech-to-Text
