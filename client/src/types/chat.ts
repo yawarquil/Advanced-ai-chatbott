@@ -26,6 +26,7 @@ export interface Settings {
   autoScroll: boolean;
   persistHistory: boolean;
   imageGeneration: boolean;
+  imageGeneration: boolean;
 }
 
 export interface Conversation {

@@ -3,7 +3,7 @@ export class VoiceService {
   private recognition: SpeechRecognition | null = null;
   private isListening = false;
   private availableVoices: SpeechSynthesisVoice[] = [];
-  private elevenLabsApiKey = 'sk_cb41062ce3bb479e81952df9973a7b08a5ec2df76513006d';
+  private elevenLabsApiKey: string;
   private elevenLabsVoices = [
     { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (Male, Deep)', gender: 'Male' },
     { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella (Female, Soft)', gender: 'Female' },
@@ -18,6 +18,7 @@ export class VoiceService {
   ];
 
   constructor() {
+    this.elevenLabsApiKey = 'sk_cb41062ce3bb479e81952df9973a7b08a5ec2df76513006d';
     this.synthesis = window.speechSynthesis;
     this.loadVoices();
     
