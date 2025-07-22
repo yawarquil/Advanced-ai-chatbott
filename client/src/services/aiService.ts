@@ -27,7 +27,7 @@ export class GeminiProvider implements AIProvider {
 
   async generateResponse(message: string): Promise<string> {
     if (!this.isAvailable) {
-      throw new Error('Gemini API key not configured. Please add VITE_GEMINI_API_KEY to your Replit Secrets.');
+      throw new Error('Gemini API key not configured. Please add VITE_GEMINI_API_KEY to your Replit Secrets or environment variables.');
     }
 
     try {
@@ -86,133 +86,6 @@ export class GeminiProvider implements AIProvider {
   }
 }
 
-// OpenRouter Provider
-export class OpenRouterProvider implements AIProvider {
-  private readonly apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
-
-  getName(): string {
-    return 'OpenRouter (Mistral 7B)';
-  }
-
-  async generateResponse(message: string): Promise<string> {
-    try {
-      const response = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'AI Chat Assistant',
-        },
-        body: JSON.stringify({
-          model: 'mistralai/mistral-7b-instruct:free',
-          messages: [
-            {
-              role: 'user',
-              content: message,
-            },
-          ],
-          max_tokens: 1024,
-          temperature: 0.7,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`OpenRouter API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
-    } catch (error) {
-      console.error('OpenRouter API error:', error);
-      throw new Error('OpenRouter service temporarily unavailable.');
-    }
-  }
-}
-
-// Simple fallback provider that always works
-export class FallbackProvider implements AIProvider {
-  getName(): string {
-    return 'Smart AI Assistant';
-  }
-
-  async generateResponse(message: string): Promise<string> {
-    // Simulate a small delay for realism
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-    
-    const responses = this.generateContextualResponse(message);
-    return responses[Math.floor(Math.random() * responses.length)];
-  }
-
-  private generateContextualResponse(message: string): string[] {
-    const lowerMessage = message.toLowerCase();
-    
-    // Programming/coding questions
-    if (lowerMessage.includes('code') || lowerMessage.includes('programming') || lowerMessage.includes('javascript') || lowerMessage.includes('python') || lowerMessage.includes('html') || lowerMessage.includes('css')) {
-      return [
-        "I'd be happy to help with coding! Could you share more details about what you're trying to build or the specific problem you're facing?",
-        "Programming can be challenging but rewarding! What programming language or technology are you working with?",
-        "For coding questions, it's helpful to see the specific code you're working on. Could you share a code snippet?"
-      ];
-    }
-    
-    // Math/calculations
-    if (lowerMessage.includes('math') || lowerMessage.includes('calculate') || lowerMessage.includes('equation') || /\d+[\+\-\*\/]\d+/.test(lowerMessage)) {
-      return [
-        "I can help with math problems! Could you provide the specific calculation or equation you need help with?",
-        "Mathematics is fascinating! What type of math problem are you working on?",
-        "I'd be glad to help with calculations. Please share the mathematical problem you'd like me to solve."
-      ];
-    }
-    
-    // Creative writing
-    if (lowerMessage.includes('write') || lowerMessage.includes('story') || lowerMessage.includes('creative') || lowerMessage.includes('poem')) {
-      return [
-        "I love creative writing! What kind of story or content would you like me to help you create?",
-        "Creative writing is one of my favorite topics! What genre or style are you interested in?",
-        "I'd be happy to help with writing. Could you tell me more about what you'd like to create?"
-      ];
-    }
-    
-    // Questions
-    if (lowerMessage.includes('?') || lowerMessage.startsWith('what') || lowerMessage.startsWith('how') || lowerMessage.startsWith('why') || lowerMessage.startsWith('when') || lowerMessage.startsWith('where')) {
-      return [
-        "That's a great question! Let me think about that and provide you with a helpful answer.",
-        "I'd be happy to help answer that question. Could you provide a bit more context so I can give you the most accurate information?",
-        "Interesting question! I'll do my best to provide you with a comprehensive answer."
-      ];
-    }
-    
-    // Greetings
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey') || lowerMessage.includes('good morning') || lowerMessage.includes('good afternoon')) {
-      return [
-        "Hello! I'm here to help you with any questions or tasks you have. What can I assist you with today?",
-        "Hi there! I'm your AI assistant, ready to help with anything you need. How can I be of service?",
-        "Greetings! I'm excited to help you today. What would you like to explore or learn about?"
-      ];
-    }
-    
-    // Help requests
-    if (lowerMessage.includes('help') || lowerMessage.includes('assist') || lowerMessage.includes('support')) {
-      return [
-        "I'm here to help! I can assist with a wide variety of topics including answering questions, helping with writing, explaining concepts, solving problems, and much more. What do you need help with?",
-        "I'd be glad to assist you! I can help with research, writing, problem-solving, explanations, creative tasks, and many other things. What specific help do you need?",
-        "Absolutely, I'm here to support you! Whether you need information, creative help, problem-solving, or just want to have a conversation, I'm ready to help. What's on your mind?"
-      ];
-    }
-    
-    // Default responses for general messages
-    return [
-      "That's interesting! I'd love to help you explore that topic further. Could you tell me more about what you're thinking?",
-      "I understand what you're saying. Could you provide more details so I can give you a more specific and helpful response?",
-      "Thanks for sharing that with me! I'm here to help in any way I can. What would you like to know or discuss?",
-      "I appreciate you reaching out! I'm designed to be helpful, informative, and engaging. How can I best assist you today?",
-      "That's a great point to bring up! I'd be happy to discuss this topic with you. What specific aspect interests you most?",
-      "I'm here to help you with whatever you need! Whether it's answering questions, helping with tasks, or just having a conversation, I'm ready to assist.",
-      "Thank you for your message! I'm always eager to help and learn from our conversations. What would you like to explore together?"
-    ];
-  }
-}
-
 // AI Service Factory
 export class AIService {
   private providers: Map<string, AIProvider> = new Map();
@@ -220,25 +93,14 @@ export class AIService {
   constructor() {
     console.log('Initializing AI Service...');
     
-    // Always add the fallback provider first
-    this.providers.set('fallback', new FallbackProvider());
-    console.log('Fallback provider initialized');
-
-    // Try to initialize Gemini
+    // Initialize only Gemini
     try {
       const geminiProvider = new GeminiProvider();
       this.providers.set('gemini', geminiProvider);
       console.log('✅ Gemini provider initialized successfully');
     } catch (error) {
-      console.warn('❌ Gemini provider failed to initialize:', error);
-    }
-
-    // Try to initialize OpenRouter
-    try {
-      this.providers.set('openrouter', new OpenRouterProvider());
-      console.log('✅ OpenRouter provider initialized');
-    } catch (error) {
-      console.warn('❌ OpenRouter provider failed to initialize:', error);
+      console.error('❌ Gemini provider failed to initialize:', error);
+      throw new Error('Gemini is required but failed to initialize');
     }
 
     console.log('Available providers:', Array.from(this.providers.keys()));
@@ -246,30 +108,22 @@ export class AIService {
   }
 
   getProvider(model: string): AIProvider {
-    console.log(`Requesting provider for model: ${model}`);
+    console.log(`Requesting provider for model: ${model || 'gemini'}`);
     
-    const provider = this.providers.get(model);
+    // Always use Gemini or default to Gemini
+    const provider = this.providers.get(model || 'gemini') || this.providers.get('gemini');
     if (provider) {
-      console.log(`✅ Found provider for ${model}`);
+      console.log(`✅ Found Gemini provider`);
       return provider;
     }
     
-    // Fallback to first available provider
-    const firstProvider = this.providers.values().next().value;
-    if (firstProvider) {
-      console.warn(`⚠️ Model "${model}" not available, using fallback provider`);
-      return firstProvider;
-    }
-    
-    console.error('❌ No providers available at all');
-    throw new Error('No AI providers available. Please check your configuration.');
+    console.error('❌ Gemini provider not available');
+    throw new Error('Gemini is not available. Please check your API key configuration.');
   }
 
   getAvailableModels(): Array<{ key: string; name: string }> {
-    const models = Array.from(this.providers.entries()).map(([key, provider]) => ({
-      key,
-      name: provider.getName(),
-    }));
+    // Only return Gemini
+    const models = [{ key: 'gemini', name: 'Gemini 1.5 Flash' }];
     
     console.log('Available models:', models);
     return models;

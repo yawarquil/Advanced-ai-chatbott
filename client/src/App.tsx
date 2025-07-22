@@ -157,14 +157,8 @@ const App: React.FC = () => {
     const loadLocalData = () => {
       const loadedSettings = storageService.current.loadSettings();
       
-      // Check if the loaded model is available, otherwise use fallback
-      const availableModels = aiService.current.getAvailableModels();
-      const isModelAvailable = availableModels.some(model => model.key === loadedSettings.aiModel);
-      
-      if (!isModelAvailable) {
-        const hasGemini = availableModels.some(model => model.key === 'gemini');
-        loadedSettings.aiModel = hasGemini ? 'gemini' : 'fallback';
-      }
+      // Always use Gemini
+      loadedSettings.aiModel = 'gemini';
       
       setSettings(loadedSettings);
 
