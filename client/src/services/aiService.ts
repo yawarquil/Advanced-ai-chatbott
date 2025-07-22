@@ -8,10 +8,17 @@ export interface AIProvider {
 export class GeminiProvider implements AIProvider {
   private apiKey: string;
   private readonly apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+  private isAvailable: boolean;
 
   constructor() {
-    this.apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-    console.log('Gemini API Key available:', !!this.apiKey);
+    // Try multiple sources for the API key
+    this.apiKey = import.meta.env.VITE_GEMINI_API_KEY || 
+                  process.env.VITE_GEMINI_API_KEY || 
+                  'AIzaSyA164WKkRViwEibC4G3uuWu44RLuFwlAMM';
+    
+    this.isAvailable = !!this.apiKey && this.apiKey !== '';
+    console.log('Gemini API Key available:', this.isAvailable);
+    console.log('Gemini API Key (first 10 chars):', this.apiKey.substring(0, 10) + '...');
   }
 
   getName(): string {
@@ -19,8 +26,8 @@ export class GeminiProvider implements AIProvider {
   }
 
   async generateResponse(message: string): Promise<string> {
-    if (!this.apiKey) {
-      throw new Error('Gemini API key not configured. Please add VITE_GEMINI_API_KEY to your environment variables.');
+    if (!this.isAvailable) {
+      throw new Error('Gemini API key not configured. Please add VITE_GEMINI_API_KEY to your Replit Secrets.');
     }
 
     try {
