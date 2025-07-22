@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, User, Volume2, VolumeX, RotateCcw, Image } from 'lucide-react';
+import { Bot, User, Volume2, VolumeX, RotateCcw, Image, X } from 'lucide-react';
 import { Message } from '../types/chat';
 import { VoiceService } from '../services/voiceService';
 import AttachmentPreview from './AttachmentPreview';
@@ -9,6 +9,7 @@ import MessageContent from './MessageContent';
 interface ChatMessageProps {
   message: Message;
   onRegenerate?: () => void;
+  onRemove?: (messageId: string) => void;
   voiceEnabled: boolean;
   voiceSettings?: {
     selectedVoice: string;
@@ -20,6 +21,7 @@ interface ChatMessageProps {
 const ChatMessage: React.FC<ChatMessageProps> = ({ 
   message, 
   onRegenerate, 
+  onRemove,
   voiceEnabled, 
   voiceSettings 
 }) => {
@@ -113,6 +115,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                     title="Regenerate response"
                   >
                     <RotateCcw className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                  </button>
+                )}
+                {onRemove && (
+                  <button
+                    onClick={() => onRemove(message.id)}
+                    className="p-1 rounded hover:bg-red-200 dark:hover:bg-red-900 transition-colors"
+                    title="Remove message"
+                  >
+                    <X className="h-4 w-4 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400" />
                   </button>
                 )}
               </div>

@@ -425,6 +425,13 @@ const App: React.FC = () => {
     }
   };
 
+  const handleRemoveMessage = (messageId: string) => {
+    setChatState(prev => ({
+      ...prev,
+      messages: prev.messages.filter(msg => msg.id !== messageId),
+    }));
+  };
+
   const handleSettingsChange = (newSettings: Partial<Settings>) => {
     const saveSettings = async (updatedSettings: Settings) => {
       if (authState.user && databaseService.current) {
@@ -670,6 +677,7 @@ const App: React.FC = () => {
                           ? handleRegenerate
                           : undefined
                       }
+                      onRemove={message.type === 'ai' ? handleRemoveMessage : undefined}
                       voiceEnabled={settings.voiceEnabled}
                       voiceSettings={{
                         selectedVoice: settings.selectedVoice,
