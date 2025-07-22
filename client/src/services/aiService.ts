@@ -11,14 +11,14 @@ export class GeminiProvider implements AIProvider {
   private isAvailable: boolean;
 
   constructor() {
-    // Try multiple sources for the API key
-    this.apiKey = import.meta.env.VITE_GEMINI_API_KEY || 
-                  process.env.VITE_GEMINI_API_KEY || 
-                  'AIzaSyA164WKkRViwEibC4G3uuWu44RLuFwlAMM';
+    // Get API key from Vite environment variables
+    this.apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
     
     this.isAvailable = !!this.apiKey && this.apiKey !== '';
     console.log('Gemini API Key available:', this.isAvailable);
-    console.log('Gemini API Key (first 10 chars):', this.apiKey.substring(0, 10) + '...');
+    if (this.apiKey) {
+      console.log('Gemini API Key (first 10 chars):', this.apiKey.substring(0, 10) + '...');
+    }
   }
 
   getName(): string {

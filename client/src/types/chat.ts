@@ -18,7 +18,7 @@ export interface ChatState {
 
 export interface Settings {
   theme: 'light' | 'dark' | 'blue' | 'purple';
-  aiModel: 'gemini' | 'openrouter' | 'perplexity' | 'groq' | 'huggingface' | 'anyscale';
+  aiModel: 'gemini' | 'openrouter' | 'perplexity' | 'groq' | 'huggingface' | 'anyscale' | 'fallback';
   voiceEnabled: boolean;
   selectedVoice: string;
   voiceSpeed: number;

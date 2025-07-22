@@ -4,13 +4,14 @@ export class GeminiService {
   private apiKey: string;
 
   constructor() {
-    this.apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!this.apiKey) {
-      throw new Error('VITE_GEMINI_API_KEY environment variable is not set');
-    }
+    this.apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
   }
 
   async generateResponse(message: string): Promise<string> {
+    if (!this.apiKey) {
+      throw new Error('VITE_GEMINI_API_KEY environment variable is not set');
+    }
+    
     try {
       const response = await fetch(`${GEMINI_API_URL}?key=${this.apiKey}`, {
         method: 'POST',

@@ -284,7 +284,7 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleSendMessage = async (messageText: string, attachments?: Attachment[], generateImage?: boolean) => {
+  const handleSendMessage = async (messageText: string, attachments?: any[], generateImage?: boolean) => {
     const userMessage: Message = {
       id: uuidv4(),
       type: 'user',
@@ -700,8 +700,8 @@ const App: React.FC = () => {
           
           <ChatInput 
             onSendMessage={handleSendMessage}
-            isLoading={chatState.isLoading || chatState.isGeneratingImage}
-            isGeneratingImage={chatState.isGeneratingImage}
+            isLoading={chatState.isLoading || (chatState.isGeneratingImage || false)}
+            isGeneratingImage={chatState.isGeneratingImage || false}
             voiceEnabled={settings.voiceEnabled}
             imageGeneration={settings.imageGeneration}
           />
