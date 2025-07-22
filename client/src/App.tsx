@@ -11,7 +11,7 @@ import SettingsPanel from './components/SettingsPanel';
 import ConversationSidebar from './components/ConversationSidebar';
 import AuthModal from './components/AuthModal';
 import { ThemeProvider } from './components/ThemeProvider';
-import { AIService } from './services/aiService';
+import AIService from './services/aiService';
 import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
 import { DatabaseService } from './services/databaseService';
@@ -277,7 +277,7 @@ const App: React.FC = () => {
       type: 'ai',
       text: "Hello! I'm your AI assistant ready to help with questions, creative tasks, problem-solving, and much more. I can generate images, use voice input/output, and handle file attachments. How can I assist you today?",
       timestamp: new Date(),
-      model: aiService.current.getProvider(settings.aiModel).getName(),
+      model: 'AI Assistant',
     };
     
     setChatState(prev => ({
@@ -345,8 +345,6 @@ const App: React.FC = () => {
         }
       } else {
         // Generate text response
-        const provider = aiService.current.getProvider(settings.aiModel);
-        
         // Include attachment context in the message
         let contextualMessage = messageText;
         if (attachments && attachments.length > 0) {
@@ -360,14 +358,19 @@ const App: React.FC = () => {
           contextualMessage = `${messageText}\n\nAttached files:\n${attachmentContext}`;
         }
         
-        const response = await provider.generateResponse(contextualMessage);
+        const response = await aiService.current.generateResponse(contextualMessage, settings.aiModel);
+        
+        // Get model name for display
+        const availableModels = aiService.current.getAvailableModels();
+        const currentModel = availableModels.find((m: any) => m.key === settings.aiModel);
+        const modelName = currentModel ? currentModel.name : 'AI Assistant';
         
         const aiMessage: Message = {
           id: uuidv4(),
           type: 'ai',
           text: response,
           timestamp: new Date(),
-          model: provider.getName(),
+          model: modelName,
         };
 
         // Add message with typing effect
