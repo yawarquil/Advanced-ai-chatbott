@@ -34,7 +34,7 @@ const App: React.FC = () => {
 
   const [settings, setSettings] = useState<Settings>({
     theme: 'light',
-    aiModel: 'gemini',
+    aiModel: 'fallback',
     voiceEnabled: false,
     selectedVoice: '',
     voiceSpeed: 1,
@@ -129,6 +129,11 @@ const App: React.FC = () => {
           const userSettings = await databaseService.current.loadUserSettings(authState.user.id);
           if (userSettings) {
             setSettings(userSettings);
+          } else {
+            // Set default model to gemini if available, otherwise fallback
+            const availableModels = aiService.current.getAvailableModels();
+            const hasGemini = availableModels.some(model => model.key === 'gemini');
+            setSettings(prev => ({ ...prev, aiModel: hasGemini ? 'gemini' : 'fallback' }));
           }
 
           const userConversations = await databaseService.current.loadConversations(authState.user.id);
@@ -151,6 +156,16 @@ const App: React.FC = () => {
 
     const loadLocalData = () => {
       const loadedSettings = storageService.current.loadSettings();
+      
+      // Check if the loaded model is available, otherwise use fallback
+      const availableModels = aiService.current.getAvailableModels();
+      const isModelAvailable = availableModels.some(model => model.key === loadedSettings.aiModel);
+      
+      if (!isModelAvailable) {
+        const hasGemini = availableModels.some(model => model.key === 'gemini');
+        loadedSettings.aiModel = hasGemini ? 'gemini' : 'fallback';
+      }
+      
       setSettings(loadedSettings);
 
       const loadedConversations = storageService.current.loadConversations();
@@ -264,9 +279,9 @@ const App: React.FC = () => {
     const welcomeMessage: Message = {
       id: uuidv4(),
       type: 'ai',
-      text: "Hello! I'm your AI assistant with multi-model support. I can help you with questions, creative tasks, problem-solving, generate images, and much more. You can switch between different AI models in settings, use voice input/output, attach files, and generate images. How can I assist you today?",
+      text: "Hello! I'm your AI assistant ready to help with questions, creative tasks, problem-solving, and much more. I can generate images, use voice input/output, and handle file attachments. How can I assist you today?",
       timestamp: new Date(),
-      model: settings.aiModel,
+      model: aiService.current.getProvider(settings.aiModel).getName(),
     };
     
     setChatState(prev => ({
