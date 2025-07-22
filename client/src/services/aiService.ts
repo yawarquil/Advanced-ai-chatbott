@@ -81,10 +81,6 @@ export class GeminiProvider implements AIProvider {
 export class OpenRouterProvider implements AIProvider {
   private readonly apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
-  constructor() {
-    // No API key required for free models
-  }
-
   getName(): string {
     return 'OpenRouter (Mistral 7B)';
   }
@@ -128,10 +124,6 @@ export class OpenRouterProvider implements AIProvider {
 export class PerplexityProvider implements AIProvider {
   private readonly apiUrl = 'https://api.perplexity.ai/chat/completions';
 
-  constructor() {
-    // Using public models that don't require API key
-  }
-
   getName(): string {
     return 'Perplexity (Mixtral 8x7B)';
   }
@@ -173,10 +165,6 @@ export class PerplexityProvider implements AIProvider {
 export class GroqProvider implements AIProvider {
   private readonly apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
-  constructor() {
-    // No API key required for free tier
-  }
-
   getName(): string {
     return 'Groq (Mixtral 8x7B)';
   }
@@ -217,10 +205,6 @@ export class GroqProvider implements AIProvider {
 // HuggingFace Provider
 export class HuggingFaceProvider implements AIProvider {
   private readonly apiUrl = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-large';
-
-  constructor() {
-    // No API key required for basic usage
-  }
 
   getName(): string {
     return 'HuggingFace (DialoGPT)';
@@ -269,10 +253,6 @@ export class HuggingFaceProvider implements AIProvider {
 export class AnyScaleProvider implements AIProvider {
   private readonly apiUrl = 'https://api.endpoints.anyscale.com/v1/chat/completions';
 
-  constructor() {
-    // Free tier available
-  }
-
   getName(): string {
     return 'AnyScale (Llama 3 8B)';
   }
@@ -315,47 +295,63 @@ export class AIService {
   private providers: Map<string, AIProvider> = new Map();
 
   constructor() {
+    // Always try to initialize Gemini first
     try {
       this.providers.set('gemini', new GeminiProvider());
+      console.log('Gemini provider initialized successfully');
     } catch (error) {
       console.warn('Gemini provider not available:', error);
     }
 
+    // Initialize other providers
     try {
       this.providers.set('openrouter', new OpenRouterProvider());
+      console.log('OpenRouter provider initialized');
     } catch (error) {
       console.warn('OpenRouter provider not available:', error);
     }
 
     try {
       this.providers.set('perplexity', new PerplexityProvider());
+      console.log('Perplexity provider initialized');
     } catch (error) {
       console.warn('Perplexity provider not available:', error);
     }
 
     try {
       this.providers.set('groq', new GroqProvider());
+      console.log('Groq provider initialized');
     } catch (error) {
       console.warn('Groq provider not available:', error);
     }
 
     try {
       this.providers.set('huggingface', new HuggingFaceProvider());
+      console.log('HuggingFace provider initialized');
     } catch (error) {
       console.warn('HuggingFace provider not available:', error);
     }
 
     try {
       this.providers.set('anyscale', new AnyScaleProvider());
+      console.log('AnyScale provider initialized');
     } catch (error) {
       console.warn('AnyScale provider not available:', error);
     }
+
+    console.log('Available providers:', Array.from(this.providers.keys()));
   }
 
   getProvider(model: string): AIProvider {
     const provider = this.providers.get(model);
     if (!provider) {
-      throw new Error(`AI model "${model}" not available. Please check your API keys.`);
+      // Fallback to first available provider
+      const firstProvider = this.providers.values().next().value;
+      if (firstProvider) {
+        console.warn(`Model "${model}" not available, using fallback provider`);
+        return firstProvider;
+      }
+      throw new Error(`No AI providers available. Please check your configuration.`);
     }
     return provider;
   }

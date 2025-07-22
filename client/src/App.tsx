@@ -359,7 +359,7 @@ const App: React.FC = () => {
           model: provider.getName(),
         };
 
-        // Add message and start typing effect
+        // Add message with typing effect
         setChatState(prev => ({
           ...prev,
           messages: [...prev.messages, aiMessage],
@@ -368,6 +368,7 @@ const App: React.FC = () => {
         setTypingMessageId(aiMessage.id);
       }
     } catch (error) {
+      console.error('AI Service Error:', error);
       setChatState(prev => ({
         ...prev,
         isLoading: false,

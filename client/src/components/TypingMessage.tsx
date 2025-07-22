@@ -14,10 +14,11 @@ interface TypingMessageProps {
 const TypingMessage: React.FC<TypingMessageProps> = ({ 
   message, 
   onComplete, 
-  typingSpeed = 30 
+  typingSpeed = 25 
 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [isComplete, setIsComplete] = useState(false);
+  const [showCursor, setShowCursor] = useState(true);
 
   useEffect(() => {
     if (message.text.length === 0) {
@@ -33,6 +34,7 @@ const TypingMessage: React.FC<TypingMessageProps> = ({
         currentIndex++;
       } else {
         setIsComplete(true);
+        setShowCursor(false);
         onComplete?.();
         clearInterval(timer);
       }
@@ -40,6 +42,16 @@ const TypingMessage: React.FC<TypingMessageProps> = ({
 
     return () => clearInterval(timer);
   }, [message.text, typingSpeed, onComplete]);
+
+  // Cursor blinking effect
+  useEffect(() => {
+    if (!isComplete) {
+      const cursorTimer = setInterval(() => {
+        setShowCursor(prev => !prev);
+      }, 500);
+      return () => clearInterval(cursorTimer);
+    }
+  }, [isComplete]);
 
   return (
     <div className="flex justify-start mb-6 animate-fade-in group">
@@ -53,7 +65,9 @@ const TypingMessage: React.FC<TypingMessageProps> = ({
             <div className="text-sm leading-relaxed">
               <MessageContent text={displayedText} />
               {!isComplete && (
-                <span className="inline-block w-2 h-5 bg-gray-600 dark:bg-gray-300 ml-1 animate-pulse" />
+                <span className={`inline-block w-0.5 h-5 bg-gray-600 dark:bg-gray-300 ml-1 transition-opacity duration-100 ${
+                  showCursor ? 'opacity-100' : 'opacity-0'
+                }`} />
               )}
             </div>
             
@@ -62,15 +76,17 @@ const TypingMessage: React.FC<TypingMessageProps> = ({
               <>
                 {/* AI Generated Image */}
                 {message.imageUrl && (
-                  <ImageMessage
-                    imageUrl={message.imageUrl}
-                    imagePrompt={message.imagePrompt}
-                  />
+                  <div className="animate-fade-in">
+                    <ImageMessage
+                      imageUrl={message.imageUrl}
+                      imagePrompt={message.imagePrompt}
+                    />
+                  </div>
                 )}
                 
                 {/* Attachments */}
                 {message.attachments && message.attachments.length > 0 && (
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 space-y-2 animate-fade-in">
                     {message.attachments.map((attachment) => (
                       <AttachmentPreview
                         key={attachment.id}
