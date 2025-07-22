@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { X } from 'lucide-react';
 import Header from './components/Header';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
@@ -50,6 +51,7 @@ const App: React.FC = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
+  const [showSignInBanner, setShowSignInBanner] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const aiService = useRef(new AIService());
@@ -576,7 +578,7 @@ const App: React.FC = () => {
   };
 
   // Show auth modal if database is available but user is not signed in
-  const shouldShowAuth = !authState.isLoading && !authState.user && authService.current;
+  const shouldShowAuth = !authState.isLoading && !authState.user && authService.current && showSignInBanner;
 
   if (authState.isLoading) {
     return (
@@ -647,12 +649,21 @@ const App: React.FC = () => {
                     Sign in to save your conversations and sync across devices
                   </p>
                 </div>
-                <button
-                  onClick={() => setIsAuthModalOpen(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                >
-                  Sign In
-                </button>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => setShowSignInBanner(false)}
+                    className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors"
+                    title="Dismiss"
+                  >
+                    <X className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </button>
+                </div>
               </div>
             </div>
           )}
