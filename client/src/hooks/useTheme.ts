@@ -5,22 +5,37 @@ export const useTheme = (settings: Settings) => {
   useEffect(() => {
     const root = document.documentElement;
     
-    // Remove all theme classes
-    root.classList.remove('theme-light', 'theme-dark', 'theme-blue', 'theme-purple');
+    // Remove all possible theme classes to prevent conflicts
+    root.classList.remove(
+      'theme-light', 
+      'theme-dark', 
+      'theme-halloween', 
+      'theme-blood-red', 
+      'theme-cyber-neon', 
+      'theme-gamer', 
+      'theme-professional', 
+      'theme-monochrome'
+    );
     
-    // Add current theme class
-    root.classList.add(`theme-${settings.theme}`);
+    // Add the currently selected theme class
+    if (settings.theme) {
+      root.classList.add(`theme-${settings.theme}`);
+    }
     
-    // Update meta theme color for mobile browsers
+    // Update the meta theme color for mobile browsers
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-      const colors = {
+      const colors: { [key: string]: string } = {
         light: '#ffffff',
         dark: '#1f2937',
-        blue: '#1e40af',
-        purple: '#7c3aed',
+        halloween: '#1a0123',
+        'blood-red': '#1a0000',
+        'cyber-neon': '#1a0123',
+        'gamer': '#1f2937',
+        'professional': '#f8fafc',
+        'monochrome': '#000000',
       };
-      metaThemeColor.setAttribute('content', colors[settings.theme]);
+      metaThemeColor.setAttribute('content', colors[settings.theme as keyof typeof colors] || '#ffffff');
     }
   }, [settings.theme]);
 };

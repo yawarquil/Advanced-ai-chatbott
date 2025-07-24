@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Mic, MicOff, Paperclip, X, Image } from 'lucide-react';
+import { Send, Loader2, Mic, MicOff, Paperclip, X, Image, Wrench, Square } from 'lucide-react';
 import { VoiceService } from '../services/voiceService';
 import { FileService } from '../services/fileService';
 import { ImageService } from '../services/imageService';
@@ -12,6 +12,8 @@ interface ChatInputProps {
   isGeneratingImage?: boolean;
   voiceEnabled: boolean;
   imageGeneration: boolean;
+  onStopGeneration: () => void;
+  isTyping: boolean;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({ 
@@ -19,12 +21,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
   isLoading, 
   isGeneratingImage = false,
   voiceEnabled, 
-  imageGeneration 
+  imageGeneration,
+  onStopGeneration,
+  isTyping,
 }) => {
   const [message, setMessage] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showTools, setShowTools] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const voiceService = useRef(new VoiceService());
@@ -46,7 +51,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleImageGeneration = () => {
     if (message.trim() && !isLoading) {
-      // Add visual feedback
       const button = document.querySelector('[title="Generate image"]') as HTMLButtonElement;
       if (button) {
         button.classList.add('animate-pulse');
@@ -73,7 +77,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    // Check if speech recognition is supported
     if (!voiceService.current.isRecognitionSupported()) {
       alert('Voice input is not supported in this browser. Please try Chrome or Edge.');
       return;
@@ -142,19 +145,54 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [message]);
 
+  const toolButtons = (
+    <>
+      {voiceEnabled && voiceService.current.isRecognitionSupported() && (
+        <button
+          type="button"
+          onClick={handleVoiceInput}
+          disabled={isLoading || isTyping}
+          className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
+          title={isListening ? 'Stop listening' : 'Voice input'}
+        >
+          {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+        </button>
+      )}
+      {imageGeneration && (
+        <button
+          type="button"
+          onClick={handleImageGeneration}
+          disabled={!message.trim() || isLoading || isTyping || isGeneratingImage}
+          className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
+          title="Generate image"
+        >
+          {isGeneratingImage ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <Image className="h-5 w-5" />}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={isLoading || isTyping}
+        className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
+        title="Attach file"
+      >
+        <Paperclip className="h-5 w-5" />
+      </button>
+    </>
+  );
+
   return (
     <div 
-      className={`bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 transition-colors ${
-        isDragOver ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600' : ''
+      className={`p-2 sm:p-4 transition-colors ${
+        isDragOver ? 'bg-gray-500/10' : ''
       }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       <div className="max-w-4xl mx-auto">
-        {/* Attachments Preview */}
         {attachments.length > 0 && (
-          <div className="mb-4">
+          <div className="mb-2 sm:mb-4">
             <div className="flex flex-wrap gap-2">
               {attachments.map((attachment) => (
                 <AttachmentPreview
@@ -168,98 +206,43 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         )}
 
-        {isDragOver && (
-          <div className="mb-4 p-8 border-2 border-dashed border-blue-400 rounded-lg text-center">
-            <Paperclip className="h-8 w-8 mx-auto mb-2 text-blue-500" />
-            <p className="text-blue-600 dark:text-blue-400">Drop files here to attach</p>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="flex items-end space-x-3">
-          <div className="flex-1">
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={attachments.length > 0 ? "Add a message (optional)..." : "Type your message here..."}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[48px] max-h-32 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-              rows={1}
-              disabled={isLoading}
-            />
-          </div>
-          
-          {voiceEnabled && voiceService.current.isRecognitionSupported() && (
-            <button
-              type="button"
-              onClick={handleVoiceInput}
-              disabled={isLoading}
-              className={`p-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed transition-colors duration-200 ${
-                isListening
-                  ? 'bg-red-500 text-white hover:bg-red-600'
-                  : 'bg-gray-500 text-white hover:bg-gray-600 disabled:bg-gray-300'
-              }`}
-              title={isListening ? 'Stop listening' : 'Voice input'}
-            >
-              {isListening ? (
-                <MicOff className="h-5 w-5" />
-              ) : (
-                <Mic className="h-5 w-5" />
-              )}
-            </button>
-          )}
-          
-          {imageGeneration && (
-            <button
-              type="button"
-              onClick={handleImageGeneration}
-              disabled={!message.trim() || isLoading || isGeneratingImage}
-              className={`text-white p-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 ${
-                isGeneratingImage 
-                  ? 'bg-purple-400 animate-pulse' 
-                  : 'bg-purple-500 hover:bg-purple-600 hover:scale-105'
-              }`}
-              title="Generate image"
-            >
-              {isGeneratingImage ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-              ) : (
-                <Image className="h-5 w-5" />
-              )}
-            </button>
-          )}
-          
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={handleFileInputChange}
-            accept="image/*,text/*,.pdf,.doc,.docx,.json,.csv,.md"
+        <form onSubmit={handleSubmit} className="flex items-center space-x-2 sm:space-x-3 bg-gray-500/10 p-2 rounded-full border border-transparent focus-within:border-gray-500/30">
+          <textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Type your message..."
+            className="flex-1 w-full px-3 py-1 bg-transparent focus:outline-none resize-none min-h-[32px] max-h-32 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 hide-scrollbar"
+            rows={1}
+            disabled={isLoading || isTyping}
           />
           
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
-            className="bg-gray-500 text-white p-3 rounded-2xl hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200"
-            title="Attach file"
-          >
-            <Paperclip className="h-5 w-5" />
-          </button>
-          
-          <button
-            type="submit"
-            disabled={(!message.trim() && attachments.length === 0) || isLoading}
-            className="bg-blue-500 text-white p-3 rounded-2xl hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200"
-          >
-            {isLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
+          <div className="flex items-center space-x-1">
+            {toolButtons}
+            {isLoading || isTyping ? (
+              <button
+                type="button"
+                onClick={onStopGeneration}
+                className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
+                title="Stop generation"
+              >
+                <Square className="h-5 w-5" />
+              </button>
             ) : (
-              <Send className="h-5 w-5" />
+              <button
+                type="submit"
+                disabled={!message.trim() && attachments.length === 0}
+                className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10 disabled:opacity-50"
+              >
+                <Send className="h-5 w-5" />
+              </button>
             )}
-          </button>
+          </div>
         </form>
+        <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
+          A.I can make mistakes, so double-check it
+        </p>
       </div>
     </div>
   );

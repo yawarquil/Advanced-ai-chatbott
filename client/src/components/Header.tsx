@@ -11,30 +11,38 @@ interface HeaderProps {
   onSignOut?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ 
-  onSettingsClick, 
-  onMenuClick, 
-  user, 
-  onSignIn, 
-  onSignOut 
+const Header: React.FC<HeaderProps> = ({
+  onSettingsClick,
+  onMenuClick,
+  user,
+  onSignIn,
+  onSignOut
 }) => {
   const { settings } = useThemeContext();
 
   const getGradientClass = () => {
     switch (settings.theme) {
       case 'dark':
-        return 'bg-gradient-to-r from-black to-gray-900';
-      case 'blue':
-        return 'bg-gradient-to-r from-blue-600 to-blue-800';
-      case 'purple':
-        return 'bg-gradient-to-r from-purple-600 to-purple-800';
-      default:
-        return 'bg-gradient-to-r from-blue-600 to-purple-600';
+        return 'bg-gradient-to-r from-black to-gray-900 text-white';
+      case 'halloween':
+        return 'bg-gradient-to-r from-orange-500 to-purple-800 text-white';
+      case 'blood-red':
+        return 'bg-gradient-to-r from-red-800 to-black text-white';
+      case 'cyber-neon':
+        return 'bg-gradient-to-r from-pink-500 to-cyan-500 text-white';
+      case 'gamer':
+        return 'bg-gradient-to-r from-orange-500 to-red-600 text-white';
+      case 'professional':
+        return 'bg-gradient-to-r from-slate-500 to-slate-700 text-white';
+      case 'monochrome':
+        return 'bg-gradient-to-r from-gray-700 to-black text-white';
+      default: // This will now apply to 'light' theme
+        return 'bg-gradient-to-r from-blue-600 to-purple-600 text-white';
     }
   };
 
   return (
-    <header className={`${getGradientClass()} text-white p-4 shadow-lg transition-all duration-300`}>
+    <header className={`${getGradientClass()} p-4 shadow-lg transition-all duration-300`}>
       <div className="max-w-6xl mx-auto flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <button

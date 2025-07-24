@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, User, Volume2, VolumeX, RotateCcw, Image, X } from 'lucide-react';
+import { Bot, User, Volume2, VolumeX, RotateCcw, Image, X, Share2 } from 'lucide-react';
 import { Message } from '../types/chat';
 import { VoiceService } from '../services/voiceService';
 import AttachmentPreview from './AttachmentPreview';
@@ -18,6 +18,9 @@ interface ChatMessageProps {
   };
 }
 
+// Create a single, shared instance of the VoiceService
+const voiceService = new VoiceService();
+
 const ChatMessage: React.FC<ChatMessageProps> = ({ 
   message, 
   onRegenerate, 
@@ -26,7 +29,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   voiceSettings 
 }) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const voiceService = new VoiceService();
   const isUser = message.type === 'user';
   
   const handleSpeak = async () => {
@@ -38,6 +40,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 
     try {
       setIsSpeaking(true);
+      voiceService.stopSpeaking();
       await voiceService.speak(message.text, {
         voiceName: voiceSettings?.selectedVoice,
         rate: voiceSettings?.voiceSpeed || 1,
@@ -47,6 +50,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     } catch (error) {
       console.error('Speech error:', error);
       setIsSpeaking(false);
+    }
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'AI Chat Assistant Response',
+        text: message.text,
+      }).catch((error) => console.error('Error sharing:', error));
+    } else {
+      // Fallback for browsers that don't support the Web Share API
+      navigator.clipboard.writeText(message.text);
+      alert('Response copied to clipboard!');
     }
   };
 
@@ -71,7 +87,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               <MessageContent text={message.text} />
             </div>
             
-            {/* AI Generated Image */}
             {message.imageUrl && (
               <ImageMessage
                 imageUrl={message.imageUrl}
@@ -79,7 +94,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               />
             )}
             
-            {/* Attachments */}
             {message.attachments && message.attachments.length > 0 && (
               <div className="mt-3 space-y-2">
                 {message.attachments.map((attachment) => (
@@ -92,9 +106,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               </div>
             )}
             
-            {/* Action buttons for AI messages */}
             {!isUser && (
-              <div className="flex items-center justify-end space-x-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center justify-end space-x-2 mt-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={handleShare}
+                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  title="Share"
+                >
+                  <Share2 className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                </button>
                 {voiceEnabled && voiceService.isSpeechSupported() && (
                   <button
                     onClick={handleSpeak}

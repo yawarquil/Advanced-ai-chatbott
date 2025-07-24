@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Bot } from 'lucide-react';
 import { Message } from '../types/chat';
 import AttachmentPreview from './AttachmentPreview';
@@ -7,48 +7,65 @@ import MessageContent from './MessageContent';
 
 interface TypingMessageProps {
   message: Message;
-  onComplete?: () => void;
+  onComplete: () => void;
+  onTypingStop: (messageId: string, currentText: string) => void;
+  stopTypingRef: React.MutableRefObject<(() => void) | null>;
   typingSpeed?: number;
 }
 
 const TypingMessage: React.FC<TypingMessageProps> = ({ 
   message, 
   onComplete, 
-  typingSpeed = 50 
+  onTypingStop,
+  stopTypingRef,
+  typingSpeed = 10 
 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [isComplete, setIsComplete] = useState(false);
   const [showCursor, setShowCursor] = useState(true);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (message.text.length === 0) {
-      setIsComplete(true);
-      onComplete?.();
-      return;
-    }
-
     let currentIndex = 0;
-    const timer = setInterval(() => {
-      if (currentIndex < message.text.length) {
-        setDisplayedText(message.text.slice(0, currentIndex + 1));
-        currentIndex++;
-      } else {
-        setIsComplete(true);
-        setShowCursor(false);
-        onComplete?.();
-        clearInterval(timer);
+    
+    const startTyping = () => {
+      intervalRef.current = setInterval(() => {
+        if (currentIndex < message.text.length) {
+          setDisplayedText(prev => message.text.slice(0, prev.length + 1));
+          currentIndex++;
+        } else {
+          setIsComplete(true);
+          setShowCursor(false);
+          onComplete();
+          if (intervalRef.current) clearInterval(intervalRef.current);
+        }
+      }, typingSpeed);
+    };
+
+    startTyping();
+
+    stopTypingRef.current = () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
       }
-    }, typingSpeed);
+      // Use a function to get the latest displayedText
+      setDisplayedText(currentText => {
+        onTypingStop(message.id, currentText);
+        return currentText;
+      });
+    };
 
-    return () => clearInterval(timer);
-  }, [message.text, typingSpeed, onComplete]);
-
-  // Cursor blinking effect
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      stopTypingRef.current = null;
+    };
+  }, [message.id, message.text, typingSpeed, onComplete, onTypingStop, stopTypingRef]);
+  
   useEffect(() => {
     if (!isComplete) {
-      const cursorTimer = setInterval(() => {
-        setShowCursor(prev => !prev);
-      }, 500);
+      const cursorTimer = setInterval(() => setShowCursor(prev => !prev), 500);
       return () => clearInterval(cursorTimer);
     }
   }, [isComplete]);
@@ -65,51 +82,14 @@ const TypingMessage: React.FC<TypingMessageProps> = ({
             <div className="text-sm leading-relaxed">
               <MessageContent text={displayedText} />
               {!isComplete && (
-                <span className={`inline-block w-0.5 h-5 bg-gray-600 dark:bg-gray-300 ml-1 transition-opacity duration-100 ${
-                  showCursor ? 'opacity-100' : 'opacity-0'
-                }`} />
+                <span className={`inline-block w-0.5 h-5 bg-gray-600 dark:bg-gray-300 ml-1 transition-opacity duration-100 ${showCursor ? 'opacity-100' : 'opacity-0'}`} />
               )}
             </div>
-            
-            {/* Show attachments and images only after typing is complete */}
-            {isComplete && (
-              <>
-                {/* AI Generated Image */}
-                {message.imageUrl && (
-                  <div className="animate-fade-in">
-                    <ImageMessage
-                      imageUrl={message.imageUrl}
-                      imagePrompt={message.imagePrompt}
-                    />
-                  </div>
-                )}
-                
-                {/* Attachments */}
-                {message.attachments && message.attachments.length > 0 && (
-                  <div className="mt-3 space-y-2 animate-fade-in">
-                    {message.attachments.map((attachment) => (
-                      <AttachmentPreview
-                        key={attachment.id}
-                        attachment={attachment}
-                        showRemove={false}
-                      />
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
           </div>
-          
           <div className="flex justify-start mt-1">
             <div className="flex items-center space-x-2">
-              <span className="text-xs text-gray-400">
-                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-              {message.model && (
-                <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                  {message.model}
-                </span>
-              )}
+              <span className="text-xs text-gray-400">{message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              {message.model && <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{message.model}</span>}
             </div>
           </div>
         </div>

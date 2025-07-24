@@ -27,20 +27,60 @@
   --border-primary: #333333;
 }
 
-.theme-blue {
-  --bg-primary: #1e40af;
-  --bg-secondary: #1e3a8a;
-  --text-primary: #ffffff;
-  --text-secondary: #bfdbfe;
-  --border-primary: #3b82f6;
+.theme-halloween {
+  --bg-primary: rgba(10, 5, 20, 0.7);
+  --bg-secondary: rgba(20, 10, 40, 0.7);
+  --text-primary: #ff7518;
+  --text-secondary: #e6e6fa;
+  --border-primary: #8a2be2;
+  background-image: url('https://images.unsplash.com/photo-1570713533924-2c025091a187?q=80&w=2070&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }
 
-.theme-purple {
-  --bg-primary: #7c3aed;
-  --bg-secondary: #6d28d9;
+.theme-halloween .chat-container {
+  backdrop-filter: blur(8px);
+}
+
+.theme-blood-red {
+  --bg-primary: #1a0000;
+  --bg-secondary: #2b0000;
+  --text-primary: #ff4d4d;
+  --text-secondary: #ff8080;
+  --border-primary: #8b0000;
+}
+
+.theme-cyber-neon {
+  --bg-primary: #1a0123;
+  --bg-secondary: #2a033f;
+  --text-primary: #f0f;
+  --text-secondary: #0ff;
+  --border-primary: #f0f;
+}
+
+.theme-gamer {
+  --bg-primary: #1f2937;
+  --bg-secondary: #111827;
+  --text-primary: #fb923c;
+  --text-secondary: #fdba74;
+  --border-primary: #fb923c;
+}
+
+.theme-professional {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --border-primary: #94a3b8;
+}
+
+.theme-monochrome {
+  --bg-primary: #000000;
+  --bg-secondary: #111111;
   --text-primary: #ffffff;
-  --text-secondary: #c4b5fd;
-  --border-primary: #8b5cf6;
+  --text-secondary: #bbbbbb;
+  --border-primary: #444444;
 }
 
 @layer utilities {
@@ -113,48 +153,42 @@
   }
 }
 
-/* Custom scrollbar positioned to the right corner */
-::-webkit-scrollbar {
-  width: 8px;
+/* Custom scrollbar styling for Chat and Sidebar */
+.chat-container::-webkit-scrollbar,
+.sidebar-conversations::-webkit-scrollbar {
+  width: 6px;
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-  margin: 2px;
+.chat-container::-webkit-scrollbar-track,
+.sidebar-conversations::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.theme-dark ::-webkit-scrollbar-track {
-  background: #111111;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  background-clip: content-box;
-}
-
-.theme-dark ::-webkit-scrollbar-thumb {
+/* Scrollbar thumb for dark theme (default) */
+.chat-container::-webkit-scrollbar-thumb,
+.sidebar-conversations::-webkit-scrollbar-thumb {
   background: #444444;
+  border-radius: 3px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
-}
-
-.theme-dark ::-webkit-scrollbar-thumb:hover {
+.chat-container::-webkit-scrollbar-thumb:hover,
+.sidebar-conversations::-webkit-scrollbar-thumb:hover {
   background: #666666;
 }
 
-/* Ensure scrollbar appears on the right edge */
-.chat-container {
-  overflow-y: auto;
-  padding-right: 2px;
+/* Scrollbar thumb for light theme */
+.theme-light .chat-container::-webkit-scrollbar-thumb,
+.theme-light .sidebar-conversations::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
 }
 
-.chat-container::-webkit-scrollbar {
-  width: 6px;
+.theme-light .chat-container::-webkit-scrollbar-thumb:hover,
+.theme-light .sidebar-conversations::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+.chat-container {
+  overflow-y: auto;
 }
 
 /* Enhanced dark theme styles */
@@ -464,4 +498,23 @@ html {
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace !important;
   font-size: 0.9em !important;
   border: 1px solid #30363d !important;
+}
+
+/* Hide scrollbar for settings panel but allow scrolling */
+.settings-panel-content {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.settings-panel-content::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, and Opera */
+}
+
+/* Hide scrollbar for elements with this class */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, and Opera */
 }

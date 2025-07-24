@@ -1,3 +1,4 @@
+import { playClickSound, playTaskCompleteSound } from './services/sound';
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { X } from 'lucide-react';
@@ -34,7 +35,7 @@ const App: React.FC = () => {
   });
 
   const [settings, setSettings] = useState<Settings>({
-    theme: 'light',
+    theme: 'dark',
     aiModel: 'fallback',
     voiceEnabled: false,
     selectedVoice: '',
@@ -43,6 +44,9 @@ const App: React.FC = () => {
     autoScroll: true,
     persistHistory: true,
     imageGeneration: true,
+    fontSize: 14,
+    fontFamily: 'sans-serif',
+    imageModel: 'pollinations', // New default setting
   });
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -54,6 +58,7 @@ const App: React.FC = () => {
   const [showSignInBanner, setShowSignInBanner] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const stopTypingRef = useRef<(() => void) | null>(null);
   const aiService = useRef(new AIService());
   const storageService = useRef(new StorageService());
   const authService = useRef<AuthService | null>(null);
@@ -61,31 +66,36 @@ const App: React.FC = () => {
   const imageService = useRef(new ImageService());
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
-  // Initialize services
   useEffect(() => {
     try {
       authService.current = new AuthService();
       databaseService.current = new DatabaseService();
     } catch (error) {
       console.warn('Database services not available:', error);
-      // Fall back to local storage
     }
   }, []);
 
-  // Apply theme
   useTheme(settings);
 
-  // Handle window resize for responsive sidebar
   useEffect(() => {
-    const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 1024);
-    };
-
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+  useEffect(() => {
+  const handleGlobalClick = (event: MouseEvent) => {
+    if (event.target instanceof HTMLElement && event.target.closest('button')) {
+      playClickSound();
+    }
+  };
 
-  // Auth state management
+  document.addEventListener('click', handleGlobalClick);
+
+  return () => {
+    document.removeEventListener('click', handleGlobalClick);
+  };
+}, []);
+
   useEffect(() => {
     if (!authService.current) {
       setAuthState(prev => ({ ...prev, isLoading: false }));
@@ -96,8 +106,6 @@ const App: React.FC = () => {
       try {
         const user = await authService.current!.getCurrentUser();
         setAuthState({ user, isLoading: false, error: null });
-        
-        // Update database service token when user is authenticated
         if (user && databaseService.current) {
           const token = localStorage.getItem('auth_token');
           databaseService.current.updateToken(token);
@@ -106,13 +114,10 @@ const App: React.FC = () => {
         setAuthState({ user: null, isLoading: false, error: null });
       }
     };
-
     checkAuth();
 
     const { data: { subscription } } = authService.current.onAuthStateChange((user) => {
       setAuthState(prev => ({ ...prev, user }));
-      
-      // Update database service token when auth state changes
       if (databaseService.current) {
         const token = user ? localStorage.getItem('auth_token') : null;
         databaseService.current.updateToken(token);
@@ -122,25 +127,14 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Load initial data
   useEffect(() => {
     const loadData = async () => {
       if (authState.user && databaseService.current) {
         try {
-          // Load from database
           const userSettings = await databaseService.current.loadUserSettings(authState.user.id);
-          if (userSettings) {
-            setSettings(userSettings);
-          } else {
-            // Set default model to gemini if available, otherwise fallback
-            const availableModels = aiService.current.getAvailableModels();
-            const hasGemini = availableModels.some(model => model.key === 'gemini');
-            setSettings(prev => ({ ...prev, aiModel: hasGemini ? 'gemini' : 'fallback' }));
-          }
-
+          if (userSettings) setSettings(s => ({...s, ...userSettings}));
           const userConversations = await databaseService.current.loadConversations(authState.user.id);
           setConversations(userConversations);
-
           const currentMessages = await databaseService.current.loadCurrentConversation(authState.user.id);
           if (currentMessages.length > 0) {
             setChatState(prev => ({ ...prev, messages: currentMessages }));
@@ -148,7 +142,6 @@ const App: React.FC = () => {
             addWelcomeMessage();
           }
         } catch (error) {
-          console.error('Failed to load user data:', error);
           loadLocalData();
         }
       } else {
@@ -158,586 +151,234 @@ const App: React.FC = () => {
 
     const loadLocalData = () => {
       const loadedSettings = storageService.current.loadSettings();
-      
-      // Always use Gemini
-      loadedSettings.aiModel = 'gemini';
-      
       setSettings(loadedSettings);
-
       const loadedConversations = storageService.current.loadConversations();
       setConversations(loadedConversations);
-
       if (loadedSettings.persistHistory) {
         const currentMessages = storageService.current.loadCurrentConversation();
-        setChatState(prev => ({ ...prev, messages: currentMessages }));
-        
-        if (currentMessages.length === 0) {
+        if (currentMessages.length > 0) {
+          setChatState(prev => ({ ...prev, messages: currentMessages }));
+        } else {
           addWelcomeMessage();
         }
       } else {
-        // Add welcome message if no history
         addWelcomeMessage();
       }
     };
 
-    if (!authState.isLoading) {
-      loadData();
-    }
+    if (!authState.isLoading) loadData();
   }, [authState.user, authState.isLoading]);
-
-  // Auto-scroll to bottom
+  
   useEffect(() => {
     if (settings.autoScroll) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 0);
     }
-  }, [chatState.messages, chatState.isLoading, chatState.isGeneratingImage, settings.autoScroll]);
+  }, [chatState.messages, settings.autoScroll]);
 
-  // Save current conversation when messages change
-  useEffect(() => {
-    const saveCurrentConversation = async () => {
-      if (settings.persistHistory && chatState.messages.length > 0) {
-        if (authState.user && databaseService.current) {
-          try {
-            await databaseService.current.saveCurrentConversation(authState.user.id, chatState.messages);
-          } catch (error) {
-            console.error('Failed to save to database, using local storage:', error);
-            storageService.current.saveCurrentConversation(chatState.messages);
-          }
-        } else {
-          storageService.current.saveCurrentConversation(chatState.messages);
-        }
-      }
-    };
-
-    saveCurrentConversation();
-  }, [chatState.messages, settings.persistHistory, authState.user]);
-
-  // Auth functions
   const handleSignIn = async (email: string, password: string) => {
-    if (!authService.current) {
-      throw new Error('Authentication service not available');
-    }
-
-    setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
-    
+    if (!authService.current) throw new Error('Auth service not available');
     try {
       const user = await authService.current.signIn(email, password);
       setAuthState({ user, isLoading: false, error: null });
       setIsAuthModalOpen(false);
     } catch (error) {
-      setAuthState(prev => ({ 
-        ...prev, 
-        isLoading: false, 
-        error: error instanceof Error ? error.message : 'Sign in failed' 
-      }));
+      setAuthState(prev => ({ ...prev, error: error instanceof Error ? error.message : 'Sign in failed' }));
       throw error;
     }
   };
 
   const handleSignUp = async (email: string, password: string) => {
-    if (!authService.current) {
-      throw new Error('Authentication service not available');
-    }
-
-    setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
-    
+     if (!authService.current) throw new Error('Auth service not available');
     try {
       const user = await authService.current.signUp(email, password);
       setAuthState({ user, isLoading: false, error: null });
       setIsAuthModalOpen(false);
     } catch (error) {
-      setAuthState(prev => ({ 
-        ...prev, 
-        isLoading: false, 
-        error: error instanceof Error ? error.message : 'Sign up failed' 
-      }));
+      setAuthState(prev => ({ ...prev, error: error instanceof Error ? error.message : 'Sign up failed' }));
       throw error;
     }
   };
-
+  
   const handleSignOut = async () => {
     if (!authService.current) return;
-
-    try {
-      await authService.current.signOut();
-      setAuthState({ user: null, isLoading: false, error: null });
-      // Clear local data
-      setChatState({ messages: [], isLoading: false, error: null });
-      setConversations([]);
-      setCurrentConversationId(null);
-      addWelcomeMessage();
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
+    await authService.current.signOut();
+    setAuthState({ user: null, isLoading: false, error: null });
+    setConversations([]);
+    handleNewConversation();
   };
-
+  
   const addWelcomeMessage = () => {
-    const welcomeMessage: Message = {
-      id: uuidv4(),
-      type: 'ai',
-      text: "Hello! I'm your AI assistant ready to help with questions, creative tasks, problem-solving, and much more. I can generate images, use voice input/output, and handle file attachments. How can I assist you today?",
-      timestamp: new Date(),
-      model: 'AI Assistant',
-    };
-    
-    setChatState(prev => ({
-      ...prev,
-      messages: [welcomeMessage],
-    }));
+    const welcomeMessage: Message = { id: uuidv4(), type: 'ai', text: "Hello! I'm your AI assistant. How can I assist you today?", timestamp: new Date(), model: 'AI Assistant' };
+    setChatState({ messages: [welcomeMessage], isLoading: false, error: null });
   };
-
+  
   const handleSendMessage = async (messageText: string, attachments?: any[], generateImage?: boolean) => {
-    const userMessage: Message = {
-      id: uuidv4(),
-      type: 'user',
-      text: messageText,
-      timestamp: new Date(),
-      attachments,
-    };
-
-    setChatState(prev => ({
-      ...prev,
-      messages: [...prev.messages, userMessage],
-      isLoading: !generateImage,
-      isGeneratingImage: generateImage || false,
-      error: null,
-    }));
+    const userMessage: Message = { id: uuidv4(), type: 'user', text: messageText, timestamp: new Date(), attachments };
+    setChatState(prev => ({ ...prev, messages: [...prev.messages, userMessage], isLoading: !generateImage, isGeneratingImage: !!generateImage, error: null }));
 
     try {
       if (generateImage) {
-        // Generate image
         const imagePrompt = imageService.current.extractImagePrompt(messageText);
-        
-        try {
-          const imageUrl = await imageService.current.generateImage(imagePrompt);
-          
-          const aiMessage: Message = {
-            id: uuidv4(),
-            type: 'ai',
-            text: `I've generated an image based on your request: "${imagePrompt}"`,
-            timestamp: new Date(),
-            model: 'AI Image Generator',
-            imageUrl,
-            imagePrompt,
-          };
-
-          setChatState(prev => ({
-            ...prev,
-            messages: [...prev.messages, aiMessage],
-            isGeneratingImage: false,
-          }));
-        } catch (error) {
-          console.error('Image generation failed:', error);
-          
-          const errorMessage: Message = {
-            id: uuidv4(),
-            type: 'ai',
-            text: `Sorry, I couldn't generate an image for "${imagePrompt}". The image generation service might be temporarily unavailable. Please try again later.`,
-            timestamp: new Date(),
-            model: 'AI Image Generator',
-          };
-
-          setChatState(prev => ({
-            ...prev,
-            messages: [...prev.messages, errorMessage],
-            isGeneratingImage: false,
-          }));
-        }
+        const imageUrl = await imageService.current.generateImage(imagePrompt, settings.imageModel);
+        const aiMessage: Message = { id: uuidv4(), type: 'ai', text: `Generated image for: "${imagePrompt}"`, timestamp: new Date(), model: 'AI Image Generator', imageUrl, imagePrompt };
+        setChatState(prev => ({ ...prev, messages: [...prev.messages, aiMessage], isGeneratingImage: false }));
       } else {
-        // Generate text response
-        // Include attachment context in the message
         let contextualMessage = messageText;
         if (attachments && attachments.length > 0) {
-          const attachmentContext = attachments.map(att => {
-            if (att.content && att.type.startsWith('text/')) {
-              return `File "${att.name}" content:\n${att.content}`;
-            }
-            return `File attached: ${att.name} (${att.type})`;
-          }).join('\n\n');
-          
+          const attachmentContext = attachments.map(att => att.content && att.type.startsWith('text/') ? `File "${att.name}" content:\n${att.content}` : `File attached: ${att.name}`).join('\n\n');
           contextualMessage = `${messageText}\n\nAttached files:\n${attachmentContext}`;
         }
-        
         const response = await aiService.current.generateResponse(contextualMessage, settings.aiModel);
-        
-        // Get model name for display
-        const availableModels = aiService.current.getAvailableModels();
-        const currentModel = availableModels.find((m: any) => m.key === settings.aiModel);
+        const currentModel = aiService.current.getAvailableModels().find(m => m.key === settings.aiModel);
         const modelName = currentModel ? currentModel.name : 'AI Assistant';
-        
-        const aiMessage: Message = {
-          id: uuidv4(),
-          type: 'ai',
-          text: response,
-          timestamp: new Date(),
-          model: modelName,
-        };
-
-        // Add message with typing effect
-        setChatState(prev => ({
-          ...prev,
-          messages: [...prev.messages, aiMessage],
-          isLoading: false,
-        }));
+        const aiMessage: Message = { id: uuidv4(), type: 'ai', text: response, timestamp: new Date(), model: modelName };
+        setChatState(prev => ({ ...prev, messages: [...prev.messages, aiMessage], isLoading: false }));
         setTypingMessageId(aiMessage.id);
       }
     } catch (error) {
-      console.error('AI Service Error:', error);
-      setChatState(prev => ({
-        ...prev,
-        isLoading: false,
-        isGeneratingImage: false,
-        error: error instanceof Error ? error.message : 'Failed to get AI response',
-      }));
+      setChatState(prev => ({ ...prev, isLoading: false, isGeneratingImage: false, error: error instanceof Error ? error.message : 'Failed to get response' }));
     }
   };
 
-  const handleTypingComplete = () => {
-    setTypingMessageId(null);
+  const handleStopGeneration = () => {
+    stopTypingRef.current?.();
+    setChatState(prev => ({ ...prev, isLoading: false, isGeneratingImage: false }));
   };
-
-  const handleRegenerate = async () => {
-    const lastUserMessage = chatState.messages
-      .slice()
-      .reverse()
-      .find(msg => msg.type === 'user');
-    
-    if (lastUserMessage) {
-      // Remove the last AI response
-      setChatState(prev => ({
-        ...prev,
-        messages: prev.messages.slice(0, -1),
-        error: null,
-      }));
-      
-      // Regenerate response
-      await handleSendMessage(lastUserMessage.text);
-    }
-  };
-
-  const handleRetry = () => {
-    const lastUserMessage = chatState.messages
-      .slice()
-      .reverse()
-      .find(msg => msg.type === 'user');
-    
-    if (lastUserMessage) {
-      setChatState(prev => ({
-        ...prev,
-        error: null,
-      }));
-      handleSendMessage(lastUserMessage.text);
-    }
-  };
-
-  const handleRemoveMessage = (messageId: string) => {
+  
+  const handleTypingStop = (messageId: string, currentText: string) => {
     setChatState(prev => ({
       ...prev,
-      messages: prev.messages.filter(msg => msg.id !== messageId),
+      messages: prev.messages.map(msg => 
+        msg.id === messageId ? { ...msg, text: currentText } : msg
+      ),
     }));
+    setTypingMessageId(null);
   };
-
+  
+  const handleTypingComplete = () => setTypingMessageId(null);
+  
   const handleSettingsChange = (newSettings: Partial<Settings>) => {
-    const saveSettings = async (updatedSettings: Settings) => {
-      if (authState.user && databaseService.current) {
-        try {
-          await databaseService.current.saveUserSettings(authState.user.id, updatedSettings);
-        } catch (error) {
-          console.error('Failed to save settings to database:', error);
-          storageService.current.saveSettings(updatedSettings);
-        }
-      } else {
-        storageService.current.saveSettings(updatedSettings);
-      }
-    };
-
-    const updatedSettings = { ...settings, ...newSettings };
-    setSettings(updatedSettings);
-    saveSettings(updatedSettings);
+    setSettings(prev => ({ ...prev, ...newSettings }));
   };
-
+  
   const handleNewConversation = () => {
-    const saveAndStartNew = async () => {
-      // Save current conversation if it has messages
-      if (chatState.messages.length > 0) {
-        const conversation: Conversation = {
-          id: currentConversationId || uuidv4(),
-          title: generateConversationTitle(chatState.messages),
-          messages: chatState.messages,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          userId: authState.user?.id,
-        };
-        
-        if (authState.user && databaseService.current) {
-          try {
-            await databaseService.current.saveConversation(conversation, authState.user.id);
-          } catch (error) {
-            console.error('Failed to save conversation to database:', error);
-            storageService.current.saveConversation(conversation);
-          }
-        } else {
-          storageService.current.saveConversation(conversation);
-        }
-        
-        setConversations(prev => {
-          const existing = prev.find(c => c.id === conversation.id);
-          if (existing) {
-            return prev.map(c => c.id === conversation.id ? conversation : c);
-          }
-          return [conversation, ...prev];
-        });
-      }
-
-      // Start new conversation
-      setChatState({ messages: [], isLoading: false, error: null });
-      setCurrentConversationId(null);
-      
-      if (authState.user && databaseService.current) {
-        try {
-          await databaseService.current.clearCurrentConversation(authState.user.id);
-        } catch (error) {
-          console.error('Failed to clear current conversation in database:', error);
-        }
-      }
-      storageService.current.clearCurrentConversation();
-      
-      addWelcomeMessage();
-      setIsSidebarOpen(false);
-    };
-
-    saveAndStartNew();
+    addWelcomeMessage();
+    setCurrentConversationId(null);
   };
 
   const handleSelectConversation = (conversation: Conversation) => {
-    setChatState({
-      messages: conversation.messages,
-      isLoading: false,
-      error: null,
-    });
+    setChatState({ messages: conversation.messages, isLoading: false, error: null });
     setCurrentConversationId(conversation.id);
-    setIsSidebarOpen(false);
   };
 
-  const handleDeleteConversation = (conversationId: string) => {
-    const deleteConversation = async () => {
-      if (authState.user && databaseService.current) {
-        try {
-          await databaseService.current.deleteConversation(conversationId, authState.user.id);
-        } catch (error) {
-          console.error('Failed to delete conversation from database:', error);
-        }
-      }
-      
-      storageService.current.deleteConversation(conversationId);
-      setConversations(prev => prev.filter(c => c.id !== conversationId));
-      
-      if (currentConversationId === conversationId) {
+  const handleDeleteConversation = (id: string) => { 
+    setConversations(prev => prev.filter(c => c.id !== id));
+    if (currentConversationId === id) {
         handleNewConversation();
-      }
-    };
-
-    deleteConversation();
-  };
-
-  const handleClearHistory = () => {
-    if (confirm('Are you sure you want to clear all chat history? This action cannot be undone.')) {
-      storageService.current.clearAllData();
-      setConversations([]);
-      setChatState({ messages: [], isLoading: false, error: null, isGeneratingImage: false });
-      setCurrentConversationId(null);
-      addWelcomeMessage();
-      setIsSettingsOpen(false);
     }
   };
-
+  
+  const handleClearHistory = () => {
+    setConversations([]);
+    handleNewConversation();
+  };
+  
   const handleExportData = () => {
-    const data = {
-      conversations,
-      settings,
-      user: authState.user,
-      exportDate: new Date().toISOString(),
-    };
-    
+    const data = { conversations, settings, user: authState.user };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ai-chat-export-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
+    a.download = 'ai-chat-export.json';
     a.click();
-    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-
-  const generateConversationTitle = (messages: Message[]): string => {
-    const firstUserMessage = messages.find(m => m.type === 'user');
-    if (firstUserMessage) {
-      return firstUserMessage.text.length > 30 
-        ? firstUserMessage.text.substring(0, 30) + '...'
-        : firstUserMessage.text;
+  
+  const handleRegenerate = async () => {
+    const lastUserMessage = chatState.messages.slice().reverse().find(m => m.type === 'user');
+    if (lastUserMessage) {
+        setChatState(prev => ({...prev, messages: prev.messages.slice(0, -1)}));
+        await handleSendMessage(lastUserMessage.text, lastUserMessage.attachments);
     }
-    return 'New Conversation';
+  };
+  
+  const handleRetry = () => {
+    const lastUserMessage = chatState.messages.slice().reverse().find(m => m.type === 'user');
+    if (lastUserMessage) {
+        setChatState(prev => ({...prev, error: null}));
+        handleSendMessage(lastUserMessage.text, lastUserMessage.attachments);
+    }
+  };
+  
+  const handleRemoveMessage = (id: string) => {
+    setChatState(prev => ({...prev, messages: prev.messages.filter(m => m.id !== id)}));
   };
 
-  // Show auth modal if database is available but user is not signed in
+  const handleShareConversation = (id: string) => {
+      const conversation = conversations.find(c => c.id === id);
+      if (!conversation) return;
+      const formatted = conversation.messages.map(m => `${m.type === 'user' ? 'You' : 'AI'}: ${m.text}`).join('\n\n');
+      navigator.clipboard.writeText(formatted).then(() => alert('Copied to clipboard!'));
+  };
+  
+  const generateConversationTitle = (messages: Message[]): string => {
+    const firstUserMessage = messages.find(m => m.type === 'user');
+    return firstUserMessage ? (firstUserMessage.text.substring(0, 30) + '...') : 'New Conversation';
+  };
+  
   const shouldShowAuth = !authState.isLoading && !authState.user && authService.current && showSignInBanner;
 
   if (authState.isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
     <ThemeProvider settings={settings} updateSettings={handleSettingsChange}>
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-        {/* Auth Modal */}
-        <AuthModal
-          isOpen={isAuthModalOpen}
-          onClose={() => setIsAuthModalOpen(false)}
-          onSignIn={handleSignIn}
-          onSignUp={handleSignUp}
-          isLoading={authState.isLoading}
-          error={authState.error}
-        />
-
-        {/* Sidebar */}
+      <div className="flex h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors" style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily }}>
+        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onSignIn={handleSignIn} onSignUp={handleSignUp} isLoading={authState.isLoading} error={authState.error} />
         {isDesktop ? (
           <div className={`transition-all duration-300 ${isSidebarOpen ? 'w-80' : 'w-0'} overflow-hidden`}>
-            <ConversationSidebar
-              isOpen={isSidebarOpen}
-              onClose={() => setIsSidebarOpen(false)}
-              conversations={conversations}
-              currentConversationId={currentConversationId}
-              onSelectConversation={handleSelectConversation}
-              onNewConversation={handleNewConversation}
-              onDeleteConversation={handleDeleteConversation}
-              isDesktop={true}
-            />
+            <ConversationSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} conversations={conversations} currentConversationId={currentConversationId} onSelectConversation={handleSelectConversation} onNewConversation={handleNewConversation} onDeleteConversation={handleDeleteConversation} onShareConversation={handleShareConversation} isDesktop={isDesktop} />
           </div>
         ) : (
-          <ConversationSidebar
-            isOpen={isSidebarOpen}
-            onClose={() => setIsSidebarOpen(false)}
-            conversations={conversations}
-            currentConversationId={currentConversationId}
-            onSelectConversation={handleSelectConversation}
-            onNewConversation={handleNewConversation}
-            onDeleteConversation={handleDeleteConversation}
-            isDesktop={false}
-          />
+          <ConversationSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} conversations={conversations} currentConversationId={currentConversationId} onSelectConversation={handleSelectConversation} onNewConversation={handleNewConversation} onDeleteConversation={handleDeleteConversation} onShareConversation={handleShareConversation} isDesktop={isDesktop} />
         )}
-
-        {/* Main Chat Area */}
         <div className="flex-1 flex flex-col">
-          <Header 
-            onSettingsClick={() => setIsSettingsOpen(true)}
-            onMenuClick={() => setIsSidebarOpen(true)}
-            user={authState.user}
-            onSignIn={() => setIsAuthModalOpen(true)}
-            onSignOut={handleSignOut}
-          />
-          
+          <Header onSettingsClick={() => setIsSettingsOpen(true)} onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} user={authState.user} onSignIn={() => setIsAuthModalOpen(true)} onSignOut={handleSignOut} />
           {shouldShowAuth && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 p-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4">
               <div className="max-w-4xl mx-auto flex items-center justify-between">
-                <div>
-                  <p className="text-blue-800 dark:text-blue-200 text-sm">
-                    Sign in to save your conversations and sync across devices
-                  </p>
-                </div>
+                <p className="text-blue-800 dark:text-blue-200 text-sm">Sign in to save your conversations.</p>
                 <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => setIsAuthModalOpen(true)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    onClick={() => setShowSignInBanner(false)}
-                    className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors"
-                    title="Dismiss"
-                  >
-                    <X className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  </button>
+                  <button onClick={() => setIsAuthModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">Sign In</button>
+                  <button onClick={() => setShowSignInBanner(false)} className="p-1 rounded" title="Dismiss"><X className="h-4 w-4 text-blue-600" /></button>
                 </div>
               </div>
             </div>
           )}
-          
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full max-w-4xl mx-auto flex flex-col">
-              <div className="flex-1 chat-container p-4 space-y-4">
-                {chatState.messages.map((message, index) => (
-                  message.type === 'ai' && message.id === typingMessageId ? (
-                    <TypingMessage
-                      key={message.id}
-                      message={message}
-                      onComplete={handleTypingComplete}
-                      typingSpeed={30}
-                    />
-                  ) : (
-                    <ChatMessage
-                      key={message.id}
-                      message={message}
-                      onRegenerate={
-                        message.type === 'ai' && index === chatState.messages.length - 1 && !typingMessageId
-                          ? handleRegenerate
-                          : undefined
-                      }
-                      onRemove={message.type === 'ai' ? handleRemoveMessage : undefined}
-                      voiceEnabled={settings.voiceEnabled}
-                      voiceSettings={{
-                        selectedVoice: settings.selectedVoice,
-                        voiceSpeed: settings.voiceSpeed,
-                        voicePitch: settings.voicePitch,
-                      }}
-                    />
-                  )
-                ))}
-                
-                {(chatState.isLoading || chatState.isGeneratingImage) && (
-                  <TypingIndicator 
-                    message={chatState.isGeneratingImage ? "Generating image..." : "Thinking..."}
-                  />
-                )}
-                
-                {chatState.error && (
-                  <ErrorMessage 
-                    message={chatState.error} 
-                    onRetry={handleRetry}
-                  />
-                )}
-                
-                <div ref={messagesEndRef} />
-              </div>
+          <div className="flex-1 overflow-y-auto chat-container">
+            <div className="max-w-4xl mx-auto p-4 space-y-4">
+              {chatState.messages.map((message, index) => (
+                message.id === typingMessageId ? (
+                  <TypingMessage key={message.id} message={message} onComplete={handleTypingComplete} onTypingStop={handleTypingStop} stopTypingRef={stopTypingRef} />
+                ) : (
+                  <ChatMessage key={message.id} message={message} onRegenerate={!typingMessageId && index === chatState.messages.length - 1 ? handleRegenerate : undefined} onRemove={handleRemoveMessage} voiceEnabled={settings.voiceEnabled} voiceSettings={settings} />
+                )
+              ))}
+              {(chatState.isLoading || chatState.isGeneratingImage) && <TypingIndicator message={chatState.isGeneratingImage ? "Generating image..." : "Thinking..."} />}
+              {chatState.error && <ErrorMessage message={chatState.error} onRetry={handleRetry} />}
+              <div ref={messagesEndRef} />
             </div>
           </div>
-          
-          <ChatInput 
-            onSendMessage={handleSendMessage}
-            isLoading={chatState.isLoading || (chatState.isGeneratingImage || false)}
-            isGeneratingImage={chatState.isGeneratingImage || false}
-            voiceEnabled={settings.voiceEnabled}
-            imageGeneration={settings.imageGeneration}
-          />
+          <ChatInput onSendMessage={handleSendMessage} isLoading={chatState.isLoading || chatState.isGeneratingImage} isTyping={!!typingMessageId} onStopGeneration={handleStopGeneration} voiceEnabled={settings.voiceEnabled} imageGeneration={settings.imageGeneration} />
         </div>
-
-        {/* Settings Panel */}
-        <SettingsPanel
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          settings={settings}
-          onSettingsChange={handleSettingsChange}
-          onClearHistory={handleClearHistory}
-          onExportData={handleExportData}
-        />
+        <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} onSettingsChange={handleSettingsChange} onClearHistory={handleClearHistory} onExportData={handleExportData} />
       </div>
     </ThemeProvider>
   );

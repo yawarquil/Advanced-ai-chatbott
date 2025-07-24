@@ -3,7 +3,9 @@ export class VoiceService {
   private recognition: SpeechRecognition | null = null;
   private isListening = false;
   private availableVoices: SpeechSynthesisVoice[] = [];
-  private elevenLabsApiKey: string;
+  private elevenLabsApiKeys: string[];
+  private currentApiKeyIndex: number = 0;
+  private activeAudio: HTMLAudioElement | null = null;
   private elevenLabsVoices = [
     { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (Male, Deep)', gender: 'Male' },
     { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella (Female, Soft)', gender: 'Female' },
@@ -18,11 +20,10 @@ export class VoiceService {
   ];
 
   constructor() {
-    this.elevenLabsApiKey = 'sk_cb41062ce3bb479e81952df9973a7b08a5ec2df76513006d';
+    this.elevenLabsApiKeys = (import.meta.env.VITE_ELEVENLABS_API_KEYS || '').split(',').filter(Boolean);
     this.synthesis = window.speechSynthesis;
     this.loadVoices();
     
-    // Initialize speech recognition if available
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       this.recognition = new SpeechRecognition();
@@ -31,7 +32,6 @@ export class VoiceService {
       this.recognition.lang = 'en-US';
     }
 
-    // Load voices when they become available
     if (this.synthesis.onvoiceschanged !== undefined) {
       this.synthesis.onvoiceschanged = () => this.loadVoices();
     }
@@ -42,34 +42,23 @@ export class VoiceService {
   }
 
   getAvailableVoices(): Array<{ name: string; lang: string; gender: string }> {
-    // Ensure voices are loaded
     if (this.availableVoices.length === 0) {
       this.availableVoices = this.synthesis.getVoices();
     }
 
-    // Combine ElevenLabs voices with system voices
     const elevenLabsVoiceList = this.elevenLabsVoices.map(voice => ({
       name: `ElevenLabs: ${voice.name}`,
       lang: 'en-US',
       gender: voice.gender,
-      isElevenLabs: true,
-      voiceId: voice.id
     }));
 
-    // System voices
     const systemVoiceList = this.availableVoices.map(voice => ({
       name: voice.name,
       lang: voice.lang,
       gender: this.detectGender(voice.name),
-      voice: voice,
-      isElevenLabs: false
-    })).filter(v => v.lang.startsWith('en')); // English voices only
+    })).filter(v => v.lang.startsWith('en'));
 
-    // Combine and return (ElevenLabs first, then system voices)
-    return [
-      ...elevenLabsVoiceList,
-      ...systemVoiceList.slice(0, 10) // Limit system voices
-    ].map(v => ({ name: v.name, lang: v.lang, gender: v.gender }));
+    return [...elevenLabsVoiceList, ...systemVoiceList];
   }
 
   private detectGender(voiceName: string): string {
@@ -82,96 +71,98 @@ export class VoiceService {
     return 'Neutral';
   }
 
-  // Text-to-Speech
   speak(text: string, options: { 
     rate?: number; 
     pitch?: number; 
     volume?: number; 
     voiceName?: string;
   } = {}): Promise<void> {
-    return new Promise((resolve, reject) => {
-      // Check if it's an ElevenLabs voice
-      if (options.voiceName && options.voiceName.startsWith('ElevenLabs:')) {
-        this.speakWithElevenLabs(text, options.voiceName)
-          .then(() => resolve())
-          .catch(reject);
-        return;
-      }
+    this.stopSpeaking();
 
+    return new Promise((resolve, reject) => {
+      if (options.voiceName && options.voiceName.startsWith('ElevenLabs:')) {
+        this.speakWithElevenLabs(text, options.voiceName).then(resolve).catch(reject);
+      } else {
+        this.speakWithBrowser(text, options).then(resolve).catch(reject);
+      }
+    });
+  }
+
+  private speakWithBrowser(text: string, options: any): Promise<void> {
+    return new Promise((resolve, reject) => {
       if (!this.synthesis) {
         reject(new Error('Speech synthesis not supported'));
         return;
       }
-
-      // Cancel any ongoing speech
-      this.synthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = options.rate || 1;
       utterance.pitch = options.pitch || 1;
       utterance.volume = options.volume || 1;
 
-      // Set specific voice if requested
       if (options.voiceName) {
         const voice = this.availableVoices.find(v => v.name === options.voiceName);
-        if (voice) {
-          utterance.voice = voice;
-        }
+        if (voice) utterance.voice = voice;
       }
 
       utterance.onend = () => resolve();
       utterance.onerror = (event) => reject(new Error(`Speech synthesis error: ${event.error}`));
-
       this.synthesis.speak(utterance);
     });
   }
 
-  // ElevenLabs Text-to-Speech
   private async speakWithElevenLabs(text: string, voiceName: string): Promise<void> {
+    if (this.elevenLabsApiKeys.length === 0) {
+      throw new Error('ElevenLabs API key(s) are not configured.');
+    }
+    
     try {
-      // Extract voice ID from the voice name
       const voiceDisplayName = voiceName.replace('ElevenLabs: ', '');
       const voice = this.elevenLabsVoices.find(v => voiceDisplayName.includes(v.name.split(' ')[0]));
       
-      if (!voice) {
-        throw new Error('Voice not found');
-      }
+      if (!voice) throw new Error('Voice not found');
+      
+      const apiKey = this.elevenLabsApiKeys[this.currentApiKeyIndex];
 
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice.id}`, {
         method: 'POST',
         headers: {
           'Accept': 'audio/mpeg',
           'Content-Type': 'application/json',
-          'xi-api-key': this.elevenLabsApiKey
+          'xi-api-key': apiKey
         },
         body: JSON.stringify({
           text: text,
           model_id: 'eleven_monolingual_v1',
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.5
-          }
+          voice_settings: { stability: 0.5, similarity_boost: 0.5 }
         })
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          this.currentApiKeyIndex = (this.currentApiKeyIndex + 1) % this.elevenLabsApiKeys.length;
+          console.warn(`ElevenLabs key failed, trying next key (index: ${this.currentApiKeyIndex})`);
+          return this.speakWithElevenLabs(text, voiceName);
+        }
         throw new Error(`ElevenLabs API error: ${response.status}`);
       }
 
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
+      this.activeAudio = new Audio(audioUrl);
       
       return new Promise((resolve, reject) => {
-        audio.onended = () => {
+        this.activeAudio!.onended = () => {
           URL.revokeObjectURL(audioUrl);
+          this.activeAudio = null;
           resolve();
         };
-        audio.onerror = () => {
+        this.activeAudio!.onerror = () => {
           URL.revokeObjectURL(audioUrl);
+          this.activeAudio = null;
           reject(new Error('Audio playback failed'));
         };
-        audio.play().catch(reject);
+        this.activeAudio!.play().catch(reject);
       });
     } catch (error) {
       console.error('ElevenLabs TTS error:', error);
@@ -179,93 +170,58 @@ export class VoiceService {
     }
   }
 
-  // Stop current speech
   stopSpeaking(): void {
-    if (this.synthesis) {
+    if (this.synthesis.speaking) {
       this.synthesis.cancel();
     }
-    // Also stop any playing audio elements
-    const audioElements = document.querySelectorAll('audio');
-    audioElements.forEach(audio => {
-      audio.pause();
-      audio.currentTime = 0;
-    });
+    if (this.activeAudio) {
+      this.activeAudio.pause();
+      this.activeAudio.src = ''; // Detach the source
+      this.activeAudio = null;
+    }
   }
 
-  // Speech-to-Text
   startListening(): Promise<string> {
     return new Promise((resolve, reject) => {
       if (!this.recognition) {
         reject(new Error('Speech recognition not supported in this browser'));
         return;
       }
-
       if (this.isListening) {
         reject(new Error('Voice input is already active'));
         return;
       }
-
-      // Check for microphone permissions
-      if (navigator.permissions) {
-        navigator.permissions.query({ name: 'microphone' as PermissionName }).then((result) => {
-          if (result.state === 'denied') {
-            reject(new Error('Microphone access denied. Please enable microphone permissions.'));
-            return;
-          }
-        }).catch(() => {
-          // Permissions API not supported, continue anyway
-        });
-      }
-
       this.isListening = true;
-
       this.recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         this.isListening = false;
         resolve(transcript);
       };
-
       this.recognition.onerror = (event) => {
         this.isListening = false;
-        
         let errorMessage = 'Voice input failed';
         switch (event.error) {
-          case 'network':
-            errorMessage = 'Network error. Please check your internet connection and try again.';
-            break;
-          case 'not-allowed':
-            errorMessage = 'Microphone access denied. Please enable microphone permissions in your browser.';
-            break;
-          case 'no-speech':
-            errorMessage = 'No speech detected. Please try speaking again.';
-            break;
-          case 'audio-capture':
-            errorMessage = 'Microphone not found. Please check your microphone connection.';
-            break;
-          case 'service-not-allowed':
-            errorMessage = 'Speech recognition service not available.';
-            break;
-          default:
-            errorMessage = `Voice input error: ${event.error}`;
+          case 'network': errorMessage = 'Network error.'; break;
+          case 'not-allowed': errorMessage = 'Microphone access denied.'; break;
+          case 'no-speech': errorMessage = 'No speech detected.'; break;
+          case 'audio-capture': errorMessage = 'Microphone not found.'; break;
+          case 'service-not-allowed': errorMessage = 'Speech recognition service not available.'; break;
+          default: errorMessage = `Voice input error: ${event.error}`;
         }
-        
         reject(new Error(errorMessage));
       };
-
       this.recognition.onend = () => {
         this.isListening = false;
       };
-
       try {
         this.recognition.start();
       } catch (error) {
         this.isListening = false;
-        reject(new Error('Failed to start voice recognition. Please try again.'));
+        reject(new Error('Failed to start voice recognition.'));
       }
     });
   }
 
-  // Stop listening
   stopListening(): void {
     if (this.recognition && this.isListening) {
       this.recognition.stop();
@@ -273,17 +229,14 @@ export class VoiceService {
     }
   }
 
-  // Check if currently listening
   getIsListening(): boolean {
     return this.isListening;
   }
 
-  // Check if speech synthesis is supported
   isSpeechSupported(): boolean {
     return 'speechSynthesis' in window;
   }
 
-  // Check if speech recognition is supported
   isRecognitionSupported(): boolean {
     return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
   }
