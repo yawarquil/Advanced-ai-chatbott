@@ -1,9 +1,19 @@
+// Add type declarations for SpeechRecognition
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
 export class VoiceService {
   private synthesis: SpeechSynthesis;
-  private recognition: SpeechRecognition | null = null;
+  private recognition: any = null;
   private isListening = false;
   private availableVoices: SpeechSynthesisVoice[] = [];
-  private elevenLabsApiKey: string;
+  private elevenLabsApiKeys: string[];
+  private currentApiKeyIndex: number = 0;
+  private activeAudio: HTMLAudioElement | null = null;
   private elevenLabsVoices = [
     { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (Male, Deep)', gender: 'Male' },
     { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella (Female, Soft)', gender: 'Female' },
@@ -18,20 +28,18 @@ export class VoiceService {
   ];
 
   constructor() {
-    this.elevenLabsApiKey = 'sk_cb41062ce3bb479e81952df9973a7b08a5ec2df76513006d';
+    this.elevenLabsApiKeys = (import.meta.env.VITE_ELEVENLABS_API_KEYS || '').split(',').filter(Boolean);
     this.synthesis = window.speechSynthesis;
     this.loadVoices();
     
-    // Initialize speech recognition if available
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       this.recognition = new SpeechRecognition();
       this.recognition.continuous = false;
       this.recognition.interimResults = false;
       this.recognition.lang = 'en-US';
     }
 
-    // Load voices when they become available
     if (this.synthesis.onvoiceschanged !== undefined) {
       this.synthesis.onvoiceschanged = () => this.loadVoices();
     }
@@ -42,34 +50,23 @@ export class VoiceService {
   }
 
   getAvailableVoices(): Array<{ name: string; lang: string; gender: string }> {
-    // Ensure voices are loaded
     if (this.availableVoices.length === 0) {
       this.availableVoices = this.synthesis.getVoices();
     }
 
-    // Combine ElevenLabs voices with system voices
     const elevenLabsVoiceList = this.elevenLabsVoices.map(voice => ({
       name: `ElevenLabs: ${voice.name}`,
       lang: 'en-US',
       gender: voice.gender,
-      isElevenLabs: true,
-      voiceId: voice.id
     }));
 
-    // System voices
     const systemVoiceList = this.availableVoices.map(voice => ({
       name: voice.name,
       lang: voice.lang,
       gender: this.detectGender(voice.name),
-      voice: voice,
-      isElevenLabs: false
-    })).filter(v => v.lang.startsWith('en')); // English voices only
+    })).filter(v => v.lang.startsWith('en'));
 
-    // Combine and return (ElevenLabs first, then system voices)
-    return [
-      ...elevenLabsVoiceList,
-      ...systemVoiceList.slice(0, 10) // Limit system voices
-    ].map(v => ({ name: v.name, lang: v.lang, gender: v.gender }));
+    return [...elevenLabsVoiceList, ...systemVoiceList];
   }
 
   private detectGender(voiceName: string): string {
@@ -82,96 +79,98 @@ export class VoiceService {
     return 'Neutral';
   }
 
-  // Text-to-Speech
   speak(text: string, options: { 
     rate?: number; 
     pitch?: number; 
     volume?: number; 
     voiceName?: string;
   } = {}): Promise<void> {
-    return new Promise((resolve, reject) => {
-      // Check if it's an ElevenLabs voice
-      if (options.voiceName && options.voiceName.startsWith('ElevenLabs:')) {
-        this.speakWithElevenLabs(text, options.voiceName)
-          .then(() => resolve())
-          .catch(reject);
-        return;
-      }
+    this.stopSpeaking();
 
+    return new Promise((resolve, reject) => {
+      if (options.voiceName && options.voiceName.startsWith('ElevenLabs:')) {
+        this.speakWithElevenLabs(text, options.voiceName).then(resolve).catch(reject);
+      } else {
+        this.speakWithBrowser(text, options).then(resolve).catch(reject);
+      }
+    });
+  }
+
+  private speakWithBrowser(text: string, options: any): Promise<void> {
+    return new Promise((resolve, reject) => {
       if (!this.synthesis) {
         reject(new Error('Speech synthesis not supported'));
         return;
       }
-
-      // Cancel any ongoing speech
-      this.synthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = options.rate || 1;
       utterance.pitch = options.pitch || 1;
       utterance.volume = options.volume || 1;
 
-      // Set specific voice if requested
       if (options.voiceName) {
         const voice = this.availableVoices.find(v => v.name === options.voiceName);
-        if (voice) {
-          utterance.voice = voice;
-        }
+        if (voice) utterance.voice = voice;
       }
 
       utterance.onend = () => resolve();
       utterance.onerror = (event) => reject(new Error(`Speech synthesis error: ${event.error}`));
-
       this.synthesis.speak(utterance);
     });
   }
 
-  // ElevenLabs Text-to-Speech
   private async speakWithElevenLabs(text: string, voiceName: string): Promise<void> {
+    if (this.elevenLabsApiKeys.length === 0) {
+      throw new Error('ElevenLabs API key(s) are not configured.');
+    }
+    
     try {
-      // Extract voice ID from the voice name
       const voiceDisplayName = voiceName.replace('ElevenLabs: ', '');
       const voice = this.elevenLabsVoices.find(v => voiceDisplayName.includes(v.name.split(' ')[0]));
       
-      if (!voice) {
-        throw new Error('Voice not found');
-      }
+      if (!voice) throw new Error('Voice not found');
+      
+      const apiKey = this.elevenLabsApiKeys[this.currentApiKeyIndex];
 
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice.id}`, {
         method: 'POST',
         headers: {
           'Accept': 'audio/mpeg',
           'Content-Type': 'application/json',
-          'xi-api-key': this.elevenLabsApiKey
+          'xi-api-key': apiKey
         },
         body: JSON.stringify({
           text: text,
           model_id: 'eleven_monolingual_v1',
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.5
-          }
+          voice_settings: { stability: 0.5, similarity_boost: 0.5 }
         })
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          this.currentApiKeyIndex = (this.currentApiKeyIndex + 1) % this.elevenLabsApiKeys.length;
+          console.warn(`ElevenLabs key failed, trying next key (index: ${this.currentApiKeyIndex})`);
+          return this.speakWithElevenLabs(text, voiceName);
+        }
         throw new Error(`ElevenLabs API error: ${response.status}`);
       }
 
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
+      this.activeAudio = new Audio(audioUrl);
       
       return new Promise((resolve, reject) => {
-        audio.onended = () => {
+        this.activeAudio!.onended = () => {
           URL.revokeObjectURL(audioUrl);
+          this.activeAudio = null;
           resolve();
         };
-        audio.onerror = () => {
+        this.activeAudio!.onerror = () => {
           URL.revokeObjectURL(audioUrl);
+          this.activeAudio = null;
           reject(new Error('Audio playback failed'));
         };
-        audio.play().catch(reject);
+        this.activeAudio!.play().catch(reject);
       });
     } catch (error) {
       console.error('ElevenLabs TTS error:', error);
@@ -179,93 +178,124 @@ export class VoiceService {
     }
   }
 
-  // Stop current speech
   stopSpeaking(): void {
-    if (this.synthesis) {
+    if (this.synthesis.speaking) {
       this.synthesis.cancel();
     }
-    // Also stop any playing audio elements
-    const audioElements = document.querySelectorAll('audio');
-    audioElements.forEach(audio => {
-      audio.pause();
-      audio.currentTime = 0;
-    });
+    if (this.activeAudio) {
+      this.activeAudio.pause();
+      this.activeAudio.src = ''; // Detach the source
+      this.activeAudio = null;
+    }
   }
 
-  // Speech-to-Text
   startListening(): Promise<string> {
     return new Promise((resolve, reject) => {
       if (!this.recognition) {
-        reject(new Error('Speech recognition not supported in this browser'));
+        reject(new Error('Speech recognition not supported in this browser. Please try Chrome or Edge.'));
         return;
       }
-
       if (this.isListening) {
         reject(new Error('Voice input is already active'));
         return;
       }
 
-      // Check for microphone permissions
-      if (navigator.permissions) {
-        navigator.permissions.query({ name: 'microphone' as PermissionName }).then((result) => {
-          if (result.state === 'denied') {
-            reject(new Error('Microphone access denied. Please enable microphone permissions.'));
-            return;
-          }
-        }).catch(() => {
-          // Permissions API not supported, continue anyway
-        });
+      // Reset recognition instance to avoid stale state
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        this.recognition = new SpeechRecognition();
+        this.recognition.continuous = false;
+        this.recognition.interimResults = false;
+        this.recognition.lang = 'en-US';
       }
 
       this.isListening = true;
-
-      this.recognition.onresult = (event) => {
+      
+      this.recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         this.isListening = false;
         resolve(transcript);
       };
-
-      this.recognition.onerror = (event) => {
+      
+      this.recognition.onerror = (event: any) => {
         this.isListening = false;
-        
         let errorMessage = 'Voice input failed';
+        
         switch (event.error) {
-          case 'network':
-            errorMessage = 'Network error. Please check your internet connection and try again.';
+          case 'network': 
+            errorMessage = 'Network error: Speech recognition service unavailable. This could be due to:\n\n' +
+              '• Internet connection issues\n' +
+              '• Firewall blocking speech services\n' +
+              '• Corporate network restrictions\n' +
+              '• VPN interference\n\n' +
+              'Please try:\n' +
+              '• Checking your internet connection\n' +
+              '• Using a different network (mobile hotspot)\n' +
+              '• Disabling VPN if active\n' +
+              '• Using Chrome or Edge browser\n' +
+              '• Refreshing the page and trying again'; 
             break;
-          case 'not-allowed':
-            errorMessage = 'Microphone access denied. Please enable microphone permissions in your browser.';
+          case 'not-allowed': 
+            errorMessage = 'Microphone access denied. Please allow microphone access in your browser settings.'; 
             break;
-          case 'no-speech':
-            errorMessage = 'No speech detected. Please try speaking again.';
+          case 'no-speech': 
+            errorMessage = 'No speech detected. Please try speaking again.'; 
             break;
-          case 'audio-capture':
-            errorMessage = 'Microphone not found. Please check your microphone connection.';
+          case 'audio-capture': 
+            errorMessage = 'Microphone not found. Please check your microphone connection.'; 
             break;
-          case 'service-not-allowed':
-            errorMessage = 'Speech recognition service not available.';
+          case 'service-not-allowed': 
+            errorMessage = 'Speech recognition service not available. Please try a different browser (Chrome recommended).'; 
             break;
-          default:
-            errorMessage = `Voice input error: ${event.error}`;
+          case 'aborted':
+            errorMessage = 'Voice recognition was aborted.';
+            break;
+          case 'audio-capture-device':
+            errorMessage = 'Audio capture device error. Please check your microphone.';
+            break;
+          case 'bad-grammar':
+            errorMessage = 'Speech recognition grammar error.';
+            break;
+          case 'language-not-supported':
+            errorMessage = 'Language not supported. Please try English.';
+            break;
+          default: 
+            errorMessage = `Voice input error: ${event.error}. Please try again or use a different browser.`;
+        }
+        
+        console.error('Speech recognition error:', event.error, errorMessage);
+        
+        // For network errors, provide additional debugging info
+        if (event.error === 'network') {
+          console.error('Network error details:', {
+            userAgent: navigator.userAgent,
+            online: navigator.onLine,
+            connection: (navigator as any).connection?.effectiveType || 'unknown',
+            timestamp: new Date().toISOString()
+          });
         }
         
         reject(new Error(errorMessage));
       };
-
+      
       this.recognition.onend = () => {
         this.isListening = false;
       };
-
+      
+      this.recognition.onstart = () => {
+        console.log('Speech recognition started');
+      };
+      
       try {
         this.recognition.start();
       } catch (error) {
         this.isListening = false;
-        reject(new Error('Failed to start voice recognition. Please try again.'));
+        console.error('Failed to start speech recognition:', error);
+        reject(new Error('Failed to start voice recognition. Please try refreshing the page.'));
       }
     });
   }
 
-  // Stop listening
   stopListening(): void {
     if (this.recognition && this.isListening) {
       this.recognition.stop();
@@ -273,18 +303,99 @@ export class VoiceService {
     }
   }
 
-  // Check if currently listening
   getIsListening(): boolean {
     return this.isListening;
   }
 
-  // Check if speech synthesis is supported
   isSpeechSupported(): boolean {
     return 'speechSynthesis' in window;
   }
 
-  // Check if speech recognition is supported
   isRecognitionSupported(): boolean {
     return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  }
+
+  // Test function to diagnose speech recognition issues
+  testSpeechRecognition(): Promise<{ success: boolean; details: any }> {
+    return new Promise((resolve) => {
+      if (!this.isRecognitionSupported()) {
+        resolve({
+          success: false,
+          details: {
+            error: 'Speech recognition not supported',
+            browser: navigator.userAgent,
+            supported: false
+          }
+        });
+        return;
+      }
+
+      const testRecognition = new ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)();
+      testRecognition.continuous = false;
+      testRecognition.interimResults = false;
+      testRecognition.lang = 'en-US';
+      testRecognition.maxAlternatives = 1;
+
+      const timeout = setTimeout(() => {
+        testRecognition.stop();
+        resolve({
+          success: false,
+          details: {
+            error: 'Test timeout - no response from speech service',
+            browser: navigator.userAgent,
+            online: navigator.onLine,
+            connection: (navigator as any).connection?.effectiveType || 'unknown'
+          }
+        });
+      }, 5000);
+
+      testRecognition.onstart = () => {
+        console.log('Speech recognition test started');
+      };
+
+      testRecognition.onresult = () => {
+        clearTimeout(timeout);
+        resolve({
+          success: true,
+          details: {
+            browser: navigator.userAgent,
+            online: navigator.onLine,
+            connection: (navigator as any).connection?.effectiveType || 'unknown'
+          }
+        });
+      };
+
+      testRecognition.onerror = (event: any) => {
+        clearTimeout(timeout);
+        resolve({
+          success: false,
+          details: {
+            error: event.error,
+            errorMessage: event.errorMessage || 'Unknown error',
+            browser: navigator.userAgent,
+            online: navigator.onLine,
+            connection: (navigator as any).connection?.effectiveType || 'unknown'
+          }
+        });
+      };
+
+      testRecognition.onend = () => {
+        clearTimeout(timeout);
+      };
+
+      try {
+        testRecognition.start();
+      } catch (error) {
+        clearTimeout(timeout);
+        resolve({
+          success: false,
+          details: {
+            error: 'Failed to start test',
+            errorMessage: (error as Error).message,
+            browser: navigator.userAgent
+          }
+        });
+      }
+    });
   }
 }

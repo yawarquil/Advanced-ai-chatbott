@@ -17,8 +17,8 @@ export interface ChatState {
 }
 
 export interface Settings {
-  theme: 'light' | 'dark' | 'blue' | 'purple';
-  aiModel: 'gemini' | 'openrouter' | 'perplexity' | 'groq' | 'huggingface' | 'anyscale' | 'fallback';
+  theme: 'light' | 'dark' | 'halloween' | 'blood-red' | 'cyber-neon' | 'gamer' | 'professional' | 'monochrome';
+  aiModel: string;
   voiceEnabled: boolean;
   selectedVoice: string;
   voiceSpeed: number;
@@ -26,6 +26,14 @@ export interface Settings {
   autoScroll: boolean;
   persistHistory: boolean;
   imageGeneration: boolean;
+  fontSize: number;
+  fontFamily: string;
+  imageModel: 'pollinations' | 'huggingface' | 'unsplash' | 'pixabay' | 'pexels' | 'lorem-picsum' | 'dalle-mini';
+  imageModelHf: 'stable-diffusion-xl-base-1.0';
+  particlePreset?: 'geometric' | 'sparkles' | 'bubbles' | 'stars' | 'thunderstorm' | 'matrix' | 'fireflies' | 'snow' | 'neon' | 'galaxy' | 'rain' | 'electric';
+  selectedLogo?: 'logo' | 'logo2' | 'logo3' | 'logo4';
+  clickSoundsEnabled?: boolean;
+  taskCompleteSoundsEnabled?: boolean;
 }
 
 export interface Conversation {

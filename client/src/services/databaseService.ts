@@ -8,9 +8,9 @@ export class DatabaseService {
   }
 
   private async makeRequest(url: string, options: RequestInit = {}): Promise<Response> {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
 
     if (this.token) {
@@ -44,6 +44,15 @@ export class DatabaseService {
         messages: conversation.messages,
         user_id: userId,
       }),
+    });
+
+    await response.json();
+  }
+
+  async updateConversation(id: string, updates: { messages: any[]; updated_at: Date }): Promise<void> {
+    const response = await this.makeRequest(`/api/conversations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
     });
 
     await response.json();

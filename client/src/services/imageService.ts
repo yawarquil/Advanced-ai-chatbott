@@ -1,118 +1,274 @@
+import { Settings } from '../types/chat';
+
 export class ImageService {
   private readonly POLLINATIONS_API_URL = 'https://image.pollinations.ai/prompt';
+  private readonly UNSPLASH_API_URL = 'https://api.unsplash.com/search/photos';
+  private readonly PIXABAY_API_URL = 'https://pixabay.com/api/';
+  private readonly PEXELS_API_URL = 'https://api.pexels.com/v1/search';
+  private readonly LOREM_PICSUM_URL = 'https://picsum.photos';
+  private hfApiKey: string | null;
+  private unsplashApiKey: string | null;
+  private pixabayApiKey: string | null;
+  private pexelsApiKey: string | null;
 
-  async generateImage(prompt: string): Promise<string> {
+  constructor() {
+    const hfKeys = (import.meta.env.VITE_HUGGINGFACE_API_KEYS || '').split(',').filter(Boolean);
+    this.hfApiKey = hfKeys.length > 0 ? hfKeys[0] : null;
+    
+    const unsplashKeys = (import.meta.env.VITE_UNSPLASH_API_KEYS || '').split(',').filter(Boolean);
+    this.unsplashApiKey = unsplashKeys.length > 0 ? unsplashKeys[0] : null;
+    
+    const pixabayKeys = (import.meta.env.VITE_PIXABAY_API_KEYS || '').split(',').filter(Boolean);
+    this.pixabayApiKey = pixabayKeys.length > 0 ? pixabayKeys[0] : null;
+    
+    const pexelsKeys = (import.meta.env.VITE_PEXELS_API_KEYS || '').split(',').filter(Boolean);
+    this.pexelsApiKey = pexelsKeys.length > 0 ? pexelsKeys[0] : null;
+  }
+
+  async generateImage(prompt: string, settings: Settings): Promise<string> {
+    switch (settings.imageModel) {
+      case 'huggingface':
+        return this.generateWithHuggingFace(prompt, settings.imageModelHf);
+      case 'unsplash':
+        return this.generateWithUnsplash(prompt);
+      case 'pixabay':
+        return this.generateWithPixabay(prompt);
+      case 'pexels':
+        return this.generateWithPexels(prompt);
+      case 'lorem-picsum':
+        return this.generateWithLoremPicsum(prompt);
+      case 'dalle-mini':
+        return this.generateWithDalleMini(prompt);
+      case 'pollinations':
+      default:
+        return this.generateWithPollinations(prompt);
+    }
+  }
+
+  private async generateWithHuggingFace(prompt: string, model: string): Promise<string> {
+    if (!this.hfApiKey) {
+      const errorMessage = 'Hugging Face API key not found. Please set VITE_HUGGINGFACE_API_KEYS in your .env file and restart the server.';
+      console.error(errorMessage);
+      alert(errorMessage);
+      return this.generateFallbackImage(prompt);
+    }
+
+    const modelEndpoints = {
+      'stable-diffusion-xl-base-1.0': 'stabilityai/stable-diffusion-xl-base-1.0',
+    };
+    
+    const endpoint = modelEndpoints[model as keyof typeof modelEndpoints];
+    if (!endpoint) {
+        const errorMessage = `Unknown Hugging Face model selected: ${model}`;
+        console.error(errorMessage);
+        alert(errorMessage);
+        return this.generateFallbackImage(prompt);
+    }
+
     try {
-      // Using multiple free image generation services with fallbacks
-      const services = [
-        // Pollinations.ai
-        () => {
-          const encodedPrompt = encodeURIComponent(prompt);
-          return `${this.POLLINATIONS_API_URL}/${encodedPrompt}?width=512&height=512&model=flux&enhance=true&nologo=true`;
+      const response = await fetch(`https://api-inference.huggingface.co/models/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.hfApiKey}`,
         },
-        // Alternative service
-        () => {
-          const encodedPrompt = encodeURIComponent(prompt.substring(0, 100));
-          return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&seed=${Math.floor(Math.random() * 1000000)}`;
-        },
-        // Fallback to placeholder service
-        () => this.generateFallbackImage(prompt)
-      ];
+        body: JSON.stringify({
+          inputs: prompt,
+        }),
+      });
 
-      for (const getUrl of services) {
-        try {
-          const imageUrl = getUrl();
-          await this.testImageLoad(imageUrl);
-          return imageUrl;
-        } catch (error) {
-          console.warn('Image service failed, trying next...', error);
-          continue;
+      if (!response.ok) {
+        const errorBody = await response.text();
+        if (response.status === 401) {
+          throw new Error('Your Hugging Face API key is invalid or unauthorized for this model.');
         }
+        if (response.status === 503) {
+            const errorJson = JSON.parse(errorBody);
+            const estimatedTime = Math.round(errorJson.estimated_time) || 'a moment';
+            throw new Error(`The image model is currently loading. Please try again in about ${estimatedTime} seconds.`);
+        }
+        throw new Error(`Hugging Face API request failed with status: ${response.status}. Response: ${errorBody}`);
+      }
+
+      const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) {
+        throw new Error('The API response was not an image. The model may still be loading.');
+      }
+      return URL.createObjectURL(blob);
+
+    } catch (error) {
+      console.error('Hugging Face service error:', error);
+      alert((error as Error).message);
+      return this.generateFallbackImage(prompt);
+    }
+  }
+
+  private async generateWithDalleMini(prompt: string): Promise<string> {
+    if (!this.hfApiKey) {
+      return this.generateFallbackImage(prompt);
+    }
+
+    try {
+      const response = await fetch('https://api-inference.huggingface.co/models/dalle-mini/dalle-mini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.hfApiKey}`,
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`DALL-E Mini API request failed with status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) {
+        throw new Error('The API response was not an image.');
+      }
+      return URL.createObjectURL(blob);
+
+    } catch (error) {
+      console.error('DALL-E Mini service error:', error);
+      return this.generateFallbackImage(prompt);
+    }
+  }
+
+  private async generateWithUnsplash(prompt: string): Promise<string> {
+    if (!this.unsplashApiKey) {
+      console.warn('Unsplash API key not found. Using fallback image.');
+      return this.generateFallbackImage(prompt);
+    }
+
+    try {
+      const response = await fetch(`${this.UNSPLASH_API_URL}?query=${encodeURIComponent(prompt)}&per_page=1&orientation=landscape`, {
+        headers: {
+          'Authorization': `Client-ID ${this.unsplashApiKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Unsplash API request failed with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.results && data.results.length > 0) {
+        return data.results[0].urls.regular;
       }
       
-      // If all services fail, return a placeholder
       return this.generateFallbackImage(prompt);
+    } catch (error) {
+      console.error('Unsplash service error:', error);
+      return this.generateFallbackImage(prompt);
+    }
+  }
+
+  private async generateWithPixabay(prompt: string): Promise<string> {
+    if (!this.pixabayApiKey) {
+      console.warn('Pixabay API key not found. Using fallback image.');
+      return this.generateFallbackImage(prompt);
+    }
+
+    try {
+      const response = await fetch(`${this.PIXABAY_API_URL}?key=${this.pixabayApiKey}&q=${encodeURIComponent(prompt)}&per_page=1&image_type=photo&orientation=horizontal`);
+
+      if (!response.ok) {
+        throw new Error(`Pixabay API request failed with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.hits && data.hits.length > 0) {
+        return data.hits[0].webformatURL;
+      }
+      
+      return this.generateFallbackImage(prompt);
+    } catch (error) {
+      console.error('Pixabay service error:', error);
+      return this.generateFallbackImage(prompt);
+    }
+  }
+
+  private async generateWithPexels(prompt: string): Promise<string> {
+    if (!this.pexelsApiKey) {
+      console.warn('Pexels API key not found. Using fallback image.');
+      return this.generateFallbackImage(prompt);
+    }
+
+    try {
+      const response = await fetch(`${this.PEXELS_API_URL}?query=${encodeURIComponent(prompt)}&per_page=1&orientation=landscape`, {
+        headers: {
+          'Authorization': this.pexelsApiKey,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Pexels API request failed with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.photos && data.photos.length > 0) {
+        return data.photos[0].src.large;
+      }
+      
+      return this.generateFallbackImage(prompt);
+    } catch (error) {
+      console.error('Pexels service error:', error);
+      return this.generateFallbackImage(prompt);
+    }
+  }
+
+  private async generateWithLoremPicsum(prompt: string): Promise<string> {
+    try {
+      // Use the prompt as a seed for consistent results
+      const seed = this.hashCode(prompt);
+      return `${this.LOREM_PICSUM_URL}/512/512?random=${seed}`;
+    } catch (error) {
+      console.error('Lorem Picsum service error:', error);
+      return this.generateFallbackImage(prompt);
+    }
+  }
+
+  private async generateWithPollinations(prompt: string): Promise<string> {
+    try {
+        const encodedPrompt = encodeURIComponent(prompt);
+        // Add a random seed to the URL to prevent the browser from caching the same prompt
+        const seed = Math.floor(Math.random() * 1000000);
+        const imageUrl = `${this.POLLINATIONS_API_URL}/${encodedPrompt}?width=512&height=512&seed=${seed}&nologo=true`;
+        return imageUrl;
     } catch (error) {
       console.error('Image generation error:', error);
       return this.generateFallbackImage(prompt);
     }
   }
 
-  private async testImageLoad(url: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Image failed to load'));
-      img.src = url;
-      
-      // Timeout after 10 seconds
-      setTimeout(() => reject(new Error('Image load timeout')), 10000);
-    });
-  }
-
   private generateFallbackImage(prompt: string): string {
-    // Fallback to another free service
     const encodedPrompt = encodeURIComponent(prompt.substring(0, 100));
     return `https://api.dicebear.com/7.x/shapes/svg?seed=${encodedPrompt}&backgroundColor=4F46E5,7C3AED,EC4899&size=512`;
   }
 
+  private hashCode(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash);
+  }
+
   isImageGenerationPrompt(text: string): boolean {
-    const imageKeywords = [
-      'generate image', 'create image', 'draw', 'paint', 'sketch',
-      'make a picture', 'show me', 'visualize', 'illustrate',
-      'generate a photo', 'create artwork', 'design'
-    ];
-    
-    const lowerText = text.toLowerCase();
-    return imageKeywords.some(keyword => lowerText.includes(keyword));
+    const lowerText = text.toLowerCase().trim();
+    const imageRegex = /^(generate|create|draw|paint|sketch|make|show me|visualize|illustrate|design)\s+(a|an|the)?\s*(image|photo|picture|artwork|drawing|painting|sketch|illustration|design)\s+(of|about)?/i;
+    const simpleCommands = ['draw', 'paint', 'sketch', 'illustrate'];
+    return imageRegex.test(lowerText) || simpleCommands.some(cmd => lowerText.startsWith(cmd));
   }
 
   extractImagePrompt(text: string): string {
-    // Remove common prefixes to get the actual image description
-    const prefixes = [
-      'generate image of', 'create image of', 'draw', 'paint',
-      'make a picture of', 'show me', 'visualize', 'illustrate',
-      'generate a photo of', 'create artwork of', 'design'
-    ];
-    
-    let cleanPrompt = text.toLowerCase();
-    
-    for (const prefix of prefixes) {
-      if (cleanPrompt.startsWith(prefix)) {
-        cleanPrompt = cleanPrompt.substring(prefix.length).trim();
-        break;
-      }
-    }
-    
-    return cleanPrompt || text;
-  }
-
-  // Alternative image generation services for fallback
-  async generateWithAlternativeService(prompt: string): Promise<string> {
-    try {
-      // Try Hugging Face Inference API (free tier)
-      const response = await fetch('https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          inputs: prompt,
-          parameters: {
-            width: 512,
-            height: 512,
-          }
-        }),
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        return URL.createObjectURL(blob);
-      }
-    } catch (error) {
-      console.error('Alternative service error:', error);
-    }
-    
-    return this.generateFallbackImage(prompt);
+    const lowerText = text.toLowerCase().trim();
+    const imageRegex = /^(generate|create|draw|paint|sketch|make|show me|visualize|illustrate|design)\s+(a|an|the)?\s*(image|photo|picture|artwork|drawing|painting|sketch|illustration|design)\s+(of|about)?\s*/i;
+    const cleanedPrompt = lowerText.replace(imageRegex, '').trim();
+    return cleanedPrompt.charAt(0).toUpperCase() + cleanedPrompt.slice(1);
   }
 }

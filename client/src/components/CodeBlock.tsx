@@ -39,26 +39,26 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language = 'javascript' }) 
   const detectedLanguage = language === 'javascript' ? detectLanguage(code) : language;
 
   return (
-    <div className="relative bg-gray-900 rounded-lg overflow-hidden my-3 border border-gray-700">
+    <div className="relative bg-gray-900 rounded-2xl overflow-hidden my-4 border border-gray-700/50 shadow-2xl shadow-black/20 backdrop-blur-sm">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
-        <span className="text-sm text-gray-300 font-medium capitalize">
+      <div className="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-gray-800/90 to-gray-700/90 border-b border-gray-600/30 backdrop-blur-sm">
+        <span className="text-sm text-gray-200 font-semibold capitalize tracking-wide">
           {detectedLanguage}
         </span>
         <button
           onClick={handleCopy}
-          className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
+          className="flex items-center space-x-2 px-3 py-1.5 text-xs text-gray-300 hover:text-white hover:bg-gray-600/50 rounded-lg transition-all duration-200 hover:shadow-md hover:shadow-black/20"
           title="Copy code"
         >
           {copied ? (
             <>
-              <Check className="h-3 w-3" />
-              <span>Copied!</span>
+              <Check className="h-3.5 w-3.5" />
+              <span className="font-medium">Copied!</span>
             </>
           ) : (
             <>
-              <Copy className="h-3 w-3" />
-              <span>Copy</span>
+              <Copy className="h-3.5 w-3.5" />
+              <span className="font-medium">Copy</span>
             </>
           )}
         </button>
@@ -71,16 +71,18 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language = 'javascript' }) 
           style={vscDarkPlus}
           customStyle={{
             margin: 0,
-            padding: '1rem',
+            padding: '1.25rem',
             background: 'transparent',
             fontSize: '0.875rem',
-            lineHeight: '1.5',
+            lineHeight: '1.6',
+            borderRadius: '0 0 1rem 1rem',
           }}
           showLineNumbers={code.split('\n').length > 5}
           lineNumberStyle={{
             color: '#6b7280',
-            paddingRight: '1rem',
-            minWidth: '2rem',
+            paddingRight: '1.25rem',
+            minWidth: '2.5rem',
+            opacity: 0.7,
           }}
         >
           {code}

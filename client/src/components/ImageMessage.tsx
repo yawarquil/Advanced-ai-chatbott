@@ -7,10 +7,10 @@ interface ImageMessageProps {
   onDownload?: () => void;
 }
 
-const ImageMessage: React.FC<ImageMessageProps> = ({ 
-  imageUrl, 
-  imagePrompt, 
-  onDownload 
+const ImageMessage: React.FC<ImageMessageProps> = ({
+  imageUrl,
+  imagePrompt,
+  onDownload
 }) => {
   const [imageLoaded, setImageLoaded] = React.useState(false);
   const [imageError, setImageError] = React.useState(false);
@@ -39,6 +39,7 @@ const ImageMessage: React.FC<ImageMessageProps> = ({
   };
 
   const handleImageError = () => {
+    console.error("Image failed to load:", imageUrl);
     setImageError(true);
     setImageLoaded(false);
   };
@@ -58,13 +59,8 @@ const ImageMessage: React.FC<ImageMessageProps> = ({
         {imageError && (
           <div className="w-full h-64 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-center">
             <div className="text-center">
-              <p className="text-sm text-red-600 dark:text-red-400">Failed to load image</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="mt-2 text-xs text-red-500 hover:underline"
-              >
-                Try again
-              </button>
+              <p className="text-sm text-red-600 dark:text-red-400">Failed to load image.</p>
+              <p className="text-xs text-red-500 mt-1">The service may be temporarily unavailable.</p>
             </div>
           </div>
         )}
@@ -72,13 +68,12 @@ const ImageMessage: React.FC<ImageMessageProps> = ({
         <img
           src={imageUrl}
           alt={imagePrompt || 'AI generated image'}
+          crossOrigin="anonymous" // This is the crucial fix
           className={`w-full rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ${
-            imageLoaded ? 'opacity-100' : 'opacity-0'
+            imageLoaded ? 'block' : 'hidden'
           }`}
-          loading="lazy"
           onLoad={handleImageLoad}
           onError={handleImageError}
-          style={{ display: imageLoaded ? 'block' : 'none' }}
         />
         
         {/* Overlay with actions */}
