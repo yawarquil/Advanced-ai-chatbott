@@ -207,6 +207,7 @@ const App: React.FC = () => {
     if (!authState.isLoading) loadData();
   }, [authState.user, authState.isLoading]);
   
+<<<<<<< HEAD
   // Save current conversation to database when messages change
   useEffect(() => {
     const saveCurrentConversation = async () => {
@@ -334,8 +335,9 @@ const App: React.FC = () => {
     try {
       if (generateImage) {
         const imagePrompt = imageService.current.extractImagePrompt(messageText);
-        const imageUrl = await imageService.current.generateImage(imagePrompt, settings.imageModel);
-        const aiMessage: Message = { id: uuidv4(), type: 'ai', text: `Generated image for: "${imagePrompt}"`, timestamp: new Date(), model: 'AI Image Generator', imageUrl, imagePrompt };
+        const imageUrl = await imageService.current.generateImage(imagePrompt, settings);
+        const imageModelName = getImageModelDisplayName(settings.imageModel, settings.imageModelHf);
+        const aiMessage: Message = { id: uuidv4(), type: 'ai', text: `Generated image for: "${imagePrompt}"`, timestamp: new Date(), model: imageModelName, imageUrl, imagePrompt };
         setChatState(prev => ({ ...prev, messages: [...prev.messages, aiMessage], isGeneratingImage: false }));
       } else {
         let contextualMessage = messageText;
@@ -373,7 +375,7 @@ const App: React.FC = () => {
   const handleTypingComplete = () => {
     setTypingMessageId(null);
     if (settings.taskCompleteSoundsEnabled) {
-      playTaskCompleteSound(); // Play sound when AI response is complete
+      // playTaskCompleteSound(); // Assuming this function will be implemented
     }
     // Auto-scroll to new message after typing is complete
     if (settings.autoScroll) {
@@ -385,13 +387,7 @@ const App: React.FC = () => {
   
   const handleSettingsChange = (newSettings: Partial<Settings>) => {
     setSettings(prev => {
-      let updatedSettings: Settings;
-      // If switching to huggingface and imageModelHf is missing, set a default
-      if (newSettings.imageModel === 'huggingface' && !newSettings.imageModelHf) {
-        updatedSettings = { ...prev, ...newSettings, imageModelHf: 'stable-diffusion-xl-base-1.0' };
-      } else {
-        updatedSettings = { ...prev, ...newSettings };
-      }
+      const updatedSettings = { ...prev, ...newSettings };
       
       // Save to database if user is logged in
       if (authState.user && databaseService.current) {
@@ -400,6 +396,9 @@ const App: React.FC = () => {
         });
       }
       
+      // Save to local storage for non-logged-in users or as a backup
+      storageService.current.saveSettings(updatedSettings);
+
       return updatedSettings;
     });
   };
@@ -477,6 +476,16 @@ const App: React.FC = () => {
     setShowSmartSuggestions(false);
 
     // TODO: Trigger AI response to the suggestion
+=======
+    const data = { conversations, settings, user: authState.user };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ai-chat-export.json';
+    a.click();
+    URL.revokeObjectURL(url);
+>>>>>>> f7dc412a6d89a8d828bb18be3371608babce890d
   };
   
   const handleRegenerate = async () => {
@@ -497,6 +506,7 @@ const App: React.FC = () => {
   
   const handleRemoveMessage = (id: string) => {
     setChatState(prev => ({...prev, messages: prev.messages.filter(m => m.id !== id)}));
+<<<<<<< HEAD
   };
 
   const handleSelectMessage = (conversationId: string, messageId: string) => {
@@ -591,6 +601,21 @@ const App: React.FC = () => {
     const firstUserMessage = messages.find(m => m.type === 'user');
     return firstUserMessage ? (firstUserMessage.text.substring(0, 30) + '...') : 'New Conversation';
   };
+=======
+  };
+
+  const handleShareConversation = (id: string) => {
+      const conversation = conversations.find(c => c.id === id);
+      if (!conversation) return;
+      const formatted = conversation.messages.map(m => `${m.type === 'user' ? 'You' : 'AI'}: ${m.text}`).join('\n\n');
+      navigator.clipboard.writeText(formatted).then(() => alert('Copied to clipboard!'));
+  };
+  
+  const generateConversationTitle = (messages: Message[]): string => {
+    const firstUserMessage = messages.find(m => m.type === 'user');
+    return firstUserMessage ? (firstUserMessage.text.substring(0, 30) + '...') : 'New Conversation';
+  };
+>>>>>>> f7dc412a6d89a8d828bb18be3371608babce890d
   
   const shouldShowAuth = !authState.isLoading && !authState.user && authService.current && showSignInBanner;
 
@@ -604,6 +629,7 @@ const App: React.FC = () => {
 
   return (
     <ThemeProvider settings={settings} updateSettings={handleSettingsChange}>
+<<<<<<< HEAD
       <div className="relative min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors overflow-hidden">
         <ParticleBackground preset={settings.particlePreset || 'geometric'} />
         <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onSignIn={handleSignIn} onSignUp={handleSignUp} isLoading={authState.isLoading} error={authState.error} />
@@ -654,19 +680,46 @@ const App: React.FC = () => {
                 <div className="flex items-center space-x-3">
                   <button onClick={() => setIsAuthModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm signin-banner-button hover:bg-blue-700 transition-colors duration-200">Sign In</button>
                   <button onClick={() => setShowSignInBanner(false)} className="p-1 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors duration-200" title="Dismiss"><X className="h-4 w-4 text-blue-600" /></button>
+=======
+      <div className="flex h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors" style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily }}>
+        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onSignIn={handleSignIn} onSignUp={handleSignUp} isLoading={authState.isLoading} error={authState.error} />
+        {isDesktop ? (
+          <div className={`transition-all duration-300 ${isSidebarOpen ? 'w-80' : 'w-0'} overflow-hidden`}>
+            <ConversationSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} conversations={conversations} currentConversationId={currentConversationId} onSelectConversation={handleSelectConversation} onNewConversation={handleNewConversation} onDeleteConversation={handleDeleteConversation} onShareConversation={handleShareConversation} isDesktop={isDesktop} />
+          </div>
+        ) : (
+          <ConversationSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} conversations={conversations} currentConversationId={currentConversationId} onSelectConversation={handleSelectConversation} onNewConversation={handleNewConversation} onDeleteConversation={handleDeleteConversation} onShareConversation={handleShareConversation} isDesktop={isDesktop} />
+        )}
+        <div className="flex-1 flex flex-col">
+          <Header onSettingsClick={() => setIsSettingsOpen(true)} onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} user={authState.user} onSignIn={() => setIsAuthModalOpen(true)} onSignOut={handleSignOut} />
+          {shouldShowAuth && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4">
+              <div className="max-w-4xl mx-auto flex items-center justify-between">
+                <p className="text-blue-800 dark:text-blue-200 text-sm">Sign in to save your conversations.</p>
+                <div className="flex items-center space-x-3">
+                  <button onClick={() => setIsAuthModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">Sign In</button>
+                  <button onClick={() => setShowSignInBanner(false)} className="p-1 rounded" title="Dismiss"><X className="h-4 w-4 text-blue-600" /></button>
+>>>>>>> f7dc412a6d89a8d828bb18be3371608babce890d
                 </div>
               </div>
             </div>
           )}
+<<<<<<< HEAD
           
           {/* Scrollable Chat Area */}
+=======
+>>>>>>> f7dc412a6d89a8d828bb18be3371608babce890d
           <div className="flex-1 overflow-y-auto chat-container">
             <div className="max-w-4xl mx-auto p-4 space-y-4">
               {chatState.messages.map((message, index) => (
                 message.id === typingMessageId ? (
                   <TypingMessage key={message.id} message={message} onComplete={handleTypingComplete} onTypingStop={handleTypingStop} stopTypingRef={stopTypingRef} />
                 ) : (
+<<<<<<< HEAD
+                  <ChatMessage key={message.id} message={message} onRegenerate={!typingMessageId && index === chatState.messages.length - 1 ? handleRegenerate : undefined} onRemove={handleRemoveMessage} onReaction={handleMessageReaction} voiceEnabled={settings.voiceEnabled} voiceSettings={{ selectedVoice: settings.selectedVoice, voiceSpeed: settings.voiceSpeed, voicePitch: settings.voicePitch }} selectedLogo={settings.selectedLogo} />
+=======
                   <ChatMessage key={message.id} message={message} onRegenerate={!typingMessageId && index === chatState.messages.length - 1 ? handleRegenerate : undefined} onRemove={handleRemoveMessage} voiceEnabled={settings.voiceEnabled} voiceSettings={settings} />
+>>>>>>> f7dc412a6d89a8d828bb18be3371608babce890d
                 )
               ))}
               {(chatState.isLoading || chatState.isGeneratingImage) && <TypingIndicator message={chatState.isGeneratingImage ? "Generating image..." : "Thinking..."} />}
@@ -685,7 +738,22 @@ const App: React.FC = () => {
               </button>
             )}
           </div>
+<<<<<<< HEAD
+          
+          {/* Fixed Chat Input */}
+          <div className="flex-shrink-0 z-30">
+            <ChatInput 
+              onSendMessage={handleSendMessage} 
+              isLoading={chatState.isLoading || !!chatState.isGeneratingImage} 
+              isTyping={typingMessageId !== null} 
+              onStopGeneration={handleStopGeneration} 
+              voiceEnabled={!!settings.voiceEnabled} 
+              imageGeneration={!!settings.imageGeneration} 
+            />
+          </div>
+=======
           <ChatInput onSendMessage={handleSendMessage} isLoading={chatState.isLoading || chatState.isGeneratingImage} isTyping={!!typingMessageId} onStopGeneration={handleStopGeneration} voiceEnabled={settings.voiceEnabled} imageGeneration={settings.imageGeneration} />
+>>>>>>> f7dc412a6d89a8d828bb18be3371608babce890d
         </div>
         <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} onSettingsChange={handleSettingsChange} onClearHistory={handleClearHistory} onExportData={handleExportData} />
       </div>

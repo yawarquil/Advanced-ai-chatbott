@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Mic, MicOff, Paperclip, X, Image, Wrench, Square } from 'lucide-react';
 import { VoiceService } from '../services/voiceService';
 import { FileService } from '../services/fileService';
@@ -149,37 +150,49 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   const toolButtons = (
     <>
-      {voiceEnabled && voiceService.current.isRecognitionSupported() && (
-        <button
-          type="button"
-          onClick={handleVoiceInput}
-          disabled={isLoading || isTyping}
-          className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
-          title={isListening ? 'Stop listening' : 'Voice input'}
-        >
-          {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-        </button>
-      )}
-      {imageGeneration && (
-        <button
-          type="button"
-          onClick={handleImageGeneration}
-          disabled={!message.trim() || isLoading || isTyping || isGeneratingImage}
-          className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
-          title="Generate image"
-        >
-          {isGeneratingImage ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <Image className="h-5 w-5" />}
-        </button>
-      )}
       <button
         type="button"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={isLoading || isTyping}
+        onClick={() => setShowTools(!showTools)}
         className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
-        title="Attach file"
+        title="Toggle tools"
       >
-        <Paperclip className="h-5 w-5" />
+        <Wrench className="h-5 w-5" />
       </button>
+      {showTools && (
+        <>
+          {voiceEnabled && voiceService.current.isRecognitionSupported() && (
+            <button
+              type="button"
+              onClick={handleVoiceInput}
+              disabled={isLoading || isTyping}
+              className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
+              title={isListening ? 'Stop listening' : 'Voice input'}
+            >
+              {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            </button>
+          )}
+          {imageGeneration && (
+            <button
+              type="button"
+              onClick={handleImageGeneration}
+              disabled={!message.trim() || isLoading || isTyping || isGeneratingImage}
+              className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
+              title="Generate image"
+            >
+              {isGeneratingImage ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <Image className="h-5 w-5" />}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading || isTyping}
+            className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
+            title="Attach file"
+          >
+            <Paperclip className="h-5 w-5" />
+          </button>
+        </>
+      )}
     </>
   );
 

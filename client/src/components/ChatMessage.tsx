@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Bot, User, Volume2, VolumeX, RotateCcw, Image, X, Share2 } from 'lucide-react';
-<<<<<<< HEAD
 import { Message, MessageReaction } from '../types/chat';
-=======
-import { Message } from '../types/chat';
->>>>>>> f7dc412a6d89a8d828bb18be3371608babce890d
 import { VoiceService } from '../services/voiceService';
 import AttachmentPreview from './AttachmentPreview';
 import ImageMessage from './ImageMessage';
@@ -77,15 +74,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     }
   };
 
-<<<<<<< HEAD
   const handleReaction = (reactionType: MessageReaction['type']) => {
     if (onReaction) {
       onReaction(message.id, reactionType);
     }
   };
-
-=======
->>>>>>> f7dc412a6d89a8d828bb18be3371608babce890d
   return (
     <div id={`message-${message.id}`} className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-6 animate-fade-in group`}>
       <div className={`flex ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start space-x-3 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-2xl`}>
@@ -136,7 +129,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             )}
             
             {!isUser && (
-<<<<<<< HEAD
               <div className="flex items-center justify-end space-x-1 mt-3 opacity-100 md:opacity-0 md:group-hover/chat-bubble:opacity-100 transition-opacity">
                 <MessageReactions 
                   reactions={message.reactions}
@@ -153,15 +145,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                   title="Share"
                 >
                   <Share2 className="h-4 w-4" />
-=======
-              <div className="flex items-center justify-end space-x-2 mt-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={handleShare}
-                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                  title="Share"
-                >
-                  <Share2 className="h-4 w-4 text-gray-600 dark:text-gray-400" />
->>>>>>> f7dc412a6d89a8d828bb18be3371608babce890d
                 </button>
                 {voiceEnabled && voiceService.isSpeechSupported() && (
                   <button
