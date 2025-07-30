@@ -319,16 +319,8 @@ export class ClaudeProvider implements AIProvider {
     try {
       const response = await fetch(this.apiUrl, {
         method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [{ role: 'user', content: message }],
-          max_tokens: 4000
-        }),
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: message }] }),
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);

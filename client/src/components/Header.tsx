@@ -18,9 +18,12 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({
   onSettingsClick,
   onMenuClick,
+<<<<<<< HEAD
   onShareConversation,
   onSearchClick,
   onUploadClick,
+=======
+>>>>>>> f7dc412a6d89a8d828bb18be3371608babce890d
   user,
   onSignIn,
   onSignOut
@@ -49,6 +52,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   return (
+<<<<<<< HEAD
     <header className="relative backdrop-blur-xl bg-gradient-to-r from-slate-900/40 via-purple-900/30 to-slate-900/40 dark:from-gray-900/60 dark:via-indigo-900/40 dark:to-gray-900/60 shadow-2xl rounded-3xl mx-2 sm:mx-3 mt-2 sm:mt-3 mb-3 sm:mb-6 px-3 sm:px-8 py-2 sm:py-4 flex items-center justify-between border border-white/20 dark:border-gray-700/50 transition-all duration-500 hover:shadow-3xl group overflow-hidden">
       {/* Animated background gradient */}
       <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/20 to-cyan-600/10 opacity-50 animate-pulse rounded-3xl"></div>
@@ -65,6 +69,20 @@ const Header: React.FC<HeaderProps> = ({
               logoType={settings.selectedLogo || 'logo'}
               className="h-10 w-10 sm:h-14 sm:w-14"
             />
+=======
+    <header className={`${getGradientClass()} p-4 shadow-lg transition-all duration-300`}>
+      <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={onMenuClick}
+            className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
+            title="Toggle chat history"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="bg-white/20 p-2 rounded-full">
+            <Bot className="h-6 w-6" />
+>>>>>>> f7dc412a6d89a8d828bb18be3371608babce890d
           </div>
         </button>
         

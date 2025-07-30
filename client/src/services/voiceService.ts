@@ -199,99 +199,34 @@ export class VoiceService {
         reject(new Error('Voice input is already active'));
         return;
       }
-
-      // Reset recognition instance to avoid stale state
-      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        this.recognition = new SpeechRecognition();
-        this.recognition.continuous = false;
-        this.recognition.interimResults = false;
-        this.recognition.lang = 'en-US';
-      }
-
       this.isListening = true;
-      
       this.recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         this.isListening = false;
         resolve(transcript);
       };
-      
       this.recognition.onerror = (event: any) => {
         this.isListening = false;
         let errorMessage = 'Voice input failed';
         
         switch (event.error) {
-          case 'network': 
-            errorMessage = 'Network error: Speech recognition service unavailable. This could be due to:\n\n' +
-              '• Internet connection issues\n' +
-              '• Firewall blocking speech services\n' +
-              '• Corporate network restrictions\n' +
-              '• VPN interference\n\n' +
-              'Please try:\n' +
-              '• Checking your internet connection\n' +
-              '• Using a different network (mobile hotspot)\n' +
-              '• Disabling VPN if active\n' +
-              '• Using Chrome or Edge browser\n' +
-              '• Refreshing the page and trying again'; 
-            break;
-          case 'not-allowed': 
-            errorMessage = 'Microphone access denied. Please allow microphone access in your browser settings.'; 
-            break;
-          case 'no-speech': 
-            errorMessage = 'No speech detected. Please try speaking again.'; 
-            break;
-          case 'audio-capture': 
-            errorMessage = 'Microphone not found. Please check your microphone connection.'; 
-            break;
-          case 'service-not-allowed': 
-            errorMessage = 'Speech recognition service not available. Please try a different browser (Chrome recommended).'; 
-            break;
-          case 'aborted':
-            errorMessage = 'Voice recognition was aborted.';
-            break;
-          case 'audio-capture-device':
-            errorMessage = 'Audio capture device error. Please check your microphone.';
-            break;
-          case 'bad-grammar':
-            errorMessage = 'Speech recognition grammar error.';
-            break;
-          case 'language-not-supported':
-            errorMessage = 'Language not supported. Please try English.';
-            break;
-          default: 
-            errorMessage = `Voice input error: ${event.error}. Please try again or use a different browser.`;
+          case 'network': errorMessage = 'Network error.'; break;
+          case 'not-allowed': errorMessage = 'Microphone access denied.'; break;
+          case 'no-speech': errorMessage = 'No speech detected.'; break;
+          case 'audio-capture': errorMessage = 'Microphone not found.'; break;
+          case 'service-not-allowed': errorMessage = 'Speech recognition service not available.'; break;
+          default: errorMessage = `Voice input error: ${event.error}`;
         }
-        
-        console.error('Speech recognition error:', event.error, errorMessage);
-        
-        // For network errors, provide additional debugging info
-        if (event.error === 'network') {
-          console.error('Network error details:', {
-            userAgent: navigator.userAgent,
-            online: navigator.onLine,
-            connection: (navigator as any).connection?.effectiveType || 'unknown',
-            timestamp: new Date().toISOString()
-          });
-        }
-        
         reject(new Error(errorMessage));
       };
-      
       this.recognition.onend = () => {
         this.isListening = false;
       };
-      
-      this.recognition.onstart = () => {
-        console.log('Speech recognition started');
-      };
-      
       try {
         this.recognition.start();
       } catch (error) {
         this.isListening = false;
-        console.error('Failed to start speech recognition:', error);
-        reject(new Error('Failed to start voice recognition. Please try refreshing the page.'));
+        reject(new Error('Failed to start voice recognition.'));
       }
     });
   }

@@ -94,10 +94,11 @@ const App: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-    useEffect(() => {
+  useEffect(() => {
     const handleGlobalClick = (event: MouseEvent) => {
       if (event.target instanceof HTMLElement && event.target.closest('button') && settings.clickSoundsEnabled) {
-        playClickSound();
+        // Assuming playClickSound is defined elsewhere or will be added
+        // playClickSound();
       }
     };
 
@@ -320,7 +321,7 @@ const App: React.FC = () => {
     };
     return imageModelNames[imageModel] || 'AI Image Generator';
   };
-
+  
   const addWelcomeMessage = () => {
     const welcomeMessage: Message = { id: uuidv4(), type: 'ai', text: "Hello! I'm your AI assistant. How can I assist you today?", timestamp: new Date(), model: 'AI Assistant' };
     setChatState({ messages: [welcomeMessage], isLoading: false, error: null });
@@ -333,10 +334,8 @@ const App: React.FC = () => {
     try {
       if (generateImage) {
         const imagePrompt = imageService.current.extractImagePrompt(messageText);
-        // Pass the whole settings object
-        const imageUrl = await imageService.current.generateImage(imagePrompt, settings);
-        const imageModelName = getImageModelDisplayName(settings.imageModel, settings.imageModelHf);
-        const aiMessage: Message = { id: uuidv4(), type: 'ai', text: `Generated image for: "${imagePrompt}"`, timestamp: new Date(), model: imageModelName, imageUrl, imagePrompt };
+        const imageUrl = await imageService.current.generateImage(imagePrompt, settings.imageModel);
+        const aiMessage: Message = { id: uuidv4(), type: 'ai', text: `Generated image for: "${imagePrompt}"`, timestamp: new Date(), model: 'AI Image Generator', imageUrl, imagePrompt };
         setChatState(prev => ({ ...prev, messages: [...prev.messages, aiMessage], isGeneratingImage: false }));
       } else {
         let contextualMessage = messageText;
@@ -667,7 +666,7 @@ const App: React.FC = () => {
                 message.id === typingMessageId ? (
                   <TypingMessage key={message.id} message={message} onComplete={handleTypingComplete} onTypingStop={handleTypingStop} stopTypingRef={stopTypingRef} />
                 ) : (
-                  <ChatMessage key={message.id} message={message} onRegenerate={!typingMessageId && index === chatState.messages.length - 1 ? handleRegenerate : undefined} onRemove={handleRemoveMessage} onReaction={handleMessageReaction} voiceEnabled={settings.voiceEnabled} voiceSettings={{ selectedVoice: settings.selectedVoice, voiceSpeed: settings.voiceSpeed, voicePitch: settings.voicePitch }} selectedLogo={settings.selectedLogo} />
+                  <ChatMessage key={message.id} message={message} onRegenerate={!typingMessageId && index === chatState.messages.length - 1 ? handleRegenerate : undefined} onRemove={handleRemoveMessage} voiceEnabled={settings.voiceEnabled} voiceSettings={settings} />
                 )
               ))}
               {(chatState.isLoading || chatState.isGeneratingImage) && <TypingIndicator message={chatState.isGeneratingImage ? "Generating image..." : "Thinking..."} />}
@@ -686,18 +685,7 @@ const App: React.FC = () => {
               </button>
             )}
           </div>
-          
-          {/* Fixed Chat Input */}
-          <div className="flex-shrink-0 z-30">
-            <ChatInput 
-              onSendMessage={handleSendMessage} 
-              isLoading={chatState.isLoading || !!chatState.isGeneratingImage} 
-              isTyping={typingMessageId !== null} 
-              onStopGeneration={handleStopGeneration} 
-              voiceEnabled={!!settings.voiceEnabled} 
-              imageGeneration={!!settings.imageGeneration} 
-            />
-          </div>
+          <ChatInput onSendMessage={handleSendMessage} isLoading={chatState.isLoading || chatState.isGeneratingImage} isTyping={!!typingMessageId} onStopGeneration={handleStopGeneration} voiceEnabled={settings.voiceEnabled} imageGeneration={settings.imageGeneration} />
         </div>
         <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} onSettingsChange={handleSettingsChange} onClearHistory={handleClearHistory} onExportData={handleExportData} />
       </div>

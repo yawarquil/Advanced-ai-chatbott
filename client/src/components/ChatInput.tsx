@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Mic, MicOff, Paperclip, X, Image, Square } from 'lucide-react';
+import { Send, Loader2, Mic, MicOff, Paperclip, X, Image, Wrench, Square } from 'lucide-react';
 import { VoiceService } from '../services/voiceService';
 import { FileService } from '../services/fileService';
 import { ImageService } from '../services/imageService';
@@ -154,7 +154,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           type="button"
           onClick={handleVoiceInput}
           disabled={isLoading || isTyping}
-          className="p-2 rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] transition-colors"
+          className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
           title={isListening ? 'Stop listening' : 'Voice input'}
         >
           {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
@@ -165,7 +165,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           type="button"
           onClick={handleImageGeneration}
           disabled={!message.trim() || isLoading || isTyping || isGeneratingImage}
-          className="p-2 rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] transition-colors"
+          className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
           title="Generate image"
         >
           {isGeneratingImage ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> : <Image className="h-5 w-5" />}
@@ -175,7 +175,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         type="button"
         onClick={() => fileInputRef.current?.click()}
         disabled={isLoading || isTyping}
-        className="p-2 rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] transition-colors"
+        className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
         title="Attach file"
       >
         <Paperclip className="h-5 w-5" />
@@ -185,7 +185,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div 
-      className={`p-2 sm:p-4 transition-colors relative`}
+      className={`p-2 sm:p-4 transition-colors ${
+        isDragOver ? 'bg-gray-500/10' : ''
+      }`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       <div className="max-w-4xl mx-auto">
         {attachments.length > 0 && (
@@ -203,14 +208,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex items-center space-x-2 sm:space-x-3 bg-[var(--bg-secondary)] border border-[var(--border-primary)] p-2 rounded-full shadow-lg backdrop-blur-sm">
+        <form onSubmit={handleSubmit} className="flex items-center space-x-2 sm:space-x-3 bg-gray-500/10 p-2 rounded-full border border-transparent focus-within:border-gray-500/30">
           <textarea
             ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type your message..."
-            className="flex-1 w-full px-3 py-1 bg-transparent focus:outline-none resize-none min-h-[32px] max-h-32 text-[var(--text-primary)] placeholder-[var(--text-secondary)] hide-scrollbar"
+            className="flex-1 w-full px-3 py-1 bg-transparent focus:outline-none resize-none min-h-[32px] max-h-32 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 hide-scrollbar"
             rows={1}
             disabled={isLoading || isTyping}
           />
@@ -221,7 +226,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               <button
                 type="button"
                 onClick={onStopGeneration}
-                className="p-2 rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] transition-colors"
+                className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10"
                 title="Stop generation"
               >
                 <Square className="h-5 w-5" />
@@ -230,23 +235,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
               <button
                 type="submit"
                 disabled={!message.trim() && attachments.length === 0}
-                className="p-2 rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-primary)] disabled:opacity-50 transition-colors"
+                className="p-2 rounded-full text-gray-500 hover:bg-gray-500/10 disabled:opacity-50"
               >
                 <Send className="h-5 w-5" />
               </button>
             )}
           </div>
         </form>
-        
-        {/* Hidden file input for attachments */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept=".txt,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.mp3,.wav,.mp4,.avi,.mov,.zip,.rar,.7z"
-          onChange={handleFileInputChange}
-          className="hidden"
-        />
         <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
           A.I can make mistakes, so double-check it
         </p>

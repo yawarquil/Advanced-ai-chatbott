@@ -46,8 +46,15 @@ export async function setupVite(app: Express, server: Server) {
 
   app.use('*', async (req, res, next) => {
     try {
-      const clientTemplate = path.resolve(__dirname, '..', 'client', 'index.html');
-      let template = await fs.promises.readFile(clientTemplate, 'utf-8');
+      const clientTemplate = path.resolve(
+        __dirname,
+        "..",
+        "client",
+        "index.html",
+      );
+
+      // always reload the index.html file from disk incase it changes
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
       template = template.replace(
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,

@@ -270,4 +270,32 @@ export class ImageService {
     const cleanedPrompt = lowerText.replace(imageRegex, '').trim();
     return cleanedPrompt.charAt(0).toUpperCase() + cleanedPrompt.slice(1);
   }
+
+  async generateWithAlternativeService(prompt: string): Promise<string> {
+    try {
+      const response = await fetch('https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            width: 512,
+            height: 512,
+          }
+        }),
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        return URL.createObjectURL(blob);
+      }
+      throw new Error('Hugging Face API request failed');
+    } catch (error) {
+      console.error('Alternative service error:', error);
+    }
+    
+    return this.generateFallbackImage(prompt);
+  }
 }
