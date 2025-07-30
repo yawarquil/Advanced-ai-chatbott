@@ -1,3 +1,6 @@
+import { pdfToText } from 'pdf-ts';
+import { createWorker } from 'tesseract.js';
+
 export class FileService {
   private readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   private readonly ALLOWED_TYPES = [
@@ -43,7 +46,11 @@ export class FileService {
     } else if (file.type.startsWith('image/')) {
       content = await this.readImageFile(file);
     } else if (file.type === 'application/pdf') {
-      content = 'PDF file attached (content extraction not implemented)';
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      content = await pdfToText(uint8Array);
+    } else if (file.type === 'application/msword' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      content = 'Word document attached (content extraction not implemented)';
     }
 
     return {
@@ -66,12 +73,12 @@ export class FileService {
   }
 
   private async readImageFile(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string);
-      reader.onerror = () => reject(new Error('Failed to read image file'));
-      reader.readAsDataURL(file);
+    const worker = await createWorker('eng', undefined, {
+      langPath: '/tessdata',
     });
+    const { data: { text } } = await worker.recognize(file);
+    await worker.terminate();
+    return text;
   }
 
   private generateId(): string {

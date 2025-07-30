@@ -1,7 +1,7 @@
 import { playClickSound, playTaskCompleteSound } from './services/sound';
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { X } from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 import Header from './components/Header';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
@@ -10,6 +10,10 @@ import TypingMessage from './components/TypingMessage';
 import ErrorMessage from './components/ErrorMessage';
 import SettingsPanel from './components/SettingsPanel';
 import ConversationSidebar from './components/ConversationSidebar';
+import ConversationSearch from './components/ConversationSearch';
+import ExportModal from './components/ExportModal';
+import SmartSuggestions from './components/SmartSuggestions';
+import FileUpload from './components/FileUpload';
 import AuthModal from './components/AuthModal';
 import { ThemeProvider } from './components/ThemeProvider';
 import AIService from './services/aiService';
@@ -17,7 +21,7 @@ import { StorageService } from './services/storageService';
 import { AuthService } from './services/authService';
 import { DatabaseService } from './services/databaseService';
 import { ImageService } from './services/imageService';
-import { Message, ChatState, Settings, Conversation, User, AuthState } from './types/chat';
+import { Message, ChatState, Settings, Conversation, User, AuthState, MessageReaction } from './types/chat';
 import { useTheme } from './hooks/useTheme';
 import ParticleBackground, { ParticlePreset } from './components/ParticleBackground';
 
@@ -56,6 +60,10 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isFileUploadOpen, setIsFileUploadOpen] = useState(false);
+  const [showSmartSuggestions, setShowSmartSuggestions] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
@@ -86,20 +94,44 @@ const App: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  useEffect(() => {
-  const handleGlobalClick = (event: MouseEvent) => {
-    if (event.target instanceof HTMLElement && event.target.closest('button') && settings.clickSoundsEnabled) {
-      playClickSound();
+    useEffect(() => {
+    const handleGlobalClick = (event: MouseEvent) => {
+      if (event.target instanceof HTMLElement && event.target.closest('button') && settings.clickSoundsEnabled) {
+        playClickSound();
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+          // Ctrl/Cmd + K for search
+    if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+      event.preventDefault();
+      setIsSearchOpen(true);
     }
-  };
+    // Ctrl/Cmd + L for smart suggestions
+    if ((event.ctrlKey || event.metaKey) && event.key === 'l') {
+      event.preventDefault();
+      setShowSmartSuggestions(!showSmartSuggestions);
+    }
+    // Escape to close modals
+    if (event.key === 'Escape') {
+      if (isSearchOpen) setIsSearchOpen(false);
+      if (isExportOpen) setIsExportOpen(false);
+      if (isSettingsOpen) setIsSettingsOpen(false);
+      if (isAuthModalOpen) setIsAuthModalOpen(false);
+      if (isFileUploadOpen) setIsFileUploadOpen(false);
+      if (showSmartSuggestions) setShowSmartSuggestions(false);
+    }
+    };
 
-  // Use mousedown for more responsive feedback
-  document.addEventListener('mousedown', handleGlobalClick);
+    // Use mousedown for more responsive feedback
+    document.addEventListener('mousedown', handleGlobalClick);
+    document.addEventListener('keydown', handleKeyDown);
 
-  return () => {
-    document.removeEventListener('mousedown', handleGlobalClick);
-  };
-}, [settings.clickSoundsEnabled]);
+    return () => {
+      document.removeEventListener('mousedown', handleGlobalClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [settings.clickSoundsEnabled, isSearchOpen, isExportOpen, isSettingsOpen, isAuthModalOpen, isFileUploadOpen, showSmartSuggestions]);
 
   useEffect(() => {
     if (!authService.current) {
@@ -284,7 +316,7 @@ const App: React.FC = () => {
       'pixabay': 'Pixabay',
       'pexels': 'Pexels',
       'lorem-picsum': 'Lorem Picsum',
-      'dalle-mini': 'DALL-E Mini'
+      'dalle-mini': 'Craiyon (formerly DALL-E Mini)'
     };
     return imageModelNames[imageModel] || 'AI Image Generator';
   };
@@ -396,14 +428,56 @@ const App: React.FC = () => {
   };
   
   const handleExportData = () => {
-    const data = { conversations, settings, user: authState.user };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'ai-chat-export.json';
-    a.click();
-    URL.revokeObjectURL(url);
+    setIsExportOpen(true);
+  };
+
+  const handleFileUpload = (file: File, type: 'document' | 'image') => {
+    // Create a new message with the uploaded file
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      type: 'user',
+      text: `Uploaded ${type}: ${file.name}`,
+      timestamp: new Date(),
+      attachments: [{
+        id: Date.now().toString(),
+        name: file.name,
+        type: type === 'image' ? 'image' : 'document',
+        size: file.size,
+        url: URL.createObjectURL(file)
+      }]
+    };
+
+    setChatState(prev => ({
+      ...prev,
+      messages: [...prev.messages, newMessage]
+    }));
+
+    // Close the upload modal
+    setIsFileUploadOpen(false);
+
+    // TODO: Send file to AI for analysis
+    // This would typically involve sending the file to your backend
+    // and then getting a response from the AI
+  };
+
+  const handleSmartSuggestion = (suggestion: string) => {
+    // Add the suggestion as a user message
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      type: 'user',
+      text: suggestion,
+      timestamp: new Date()
+    };
+
+    setChatState(prev => ({
+      ...prev,
+      messages: [...prev.messages, newMessage]
+    }));
+
+    // Hide suggestions after selection
+    setShowSmartSuggestions(false);
+
+    // TODO: Trigger AI response to the suggestion
   };
   
   const handleRegenerate = async () => {
@@ -424,6 +498,69 @@ const App: React.FC = () => {
   
   const handleRemoveMessage = (id: string) => {
     setChatState(prev => ({...prev, messages: prev.messages.filter(m => m.id !== id)}));
+  };
+
+  const handleSelectMessage = (conversationId: string, messageId: string) => {
+    // Find the conversation and message
+    const conversation = conversations.find(c => c.id === conversationId);
+    if (conversation) {
+      // Switch to the conversation
+      handleSelectConversation(conversation);
+      
+      // Scroll to the specific message (we'll implement this later)
+      setTimeout(() => {
+        const messageElement = document.getElementById(`message-${messageId}`);
+        if (messageElement) {
+          messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          messageElement.classList.add('highlight-message');
+          setTimeout(() => {
+            messageElement.classList.remove('highlight-message');
+          }, 3000);
+        }
+      }, 100);
+    }
+  };
+
+  const handleMessageReaction = (messageId: string, reactionType: MessageReaction['type']) => {
+    setChatState(prev => ({
+      ...prev,
+      messages: prev.messages.map(message => {
+        if (message.id === messageId) {
+          const existingReactions = message.reactions || [];
+          const existingReaction = existingReactions.find(r => r.type === reactionType);
+          
+          if (existingReaction) {
+            // Toggle reaction
+            if (existingReaction.userReacted) {
+              // Remove reaction
+              const updatedReactions = existingReactions.map(r => 
+                r.type === reactionType 
+                  ? { ...r, count: Math.max(0, r.count - 1), userReacted: false }
+                  : r
+              ).filter(r => r.count > 0);
+              return { ...message, reactions: updatedReactions };
+            } else {
+              // Add reaction
+              const updatedReactions = existingReactions.map(r => 
+                r.type === reactionType 
+                  ? { ...r, count: r.count + 1, userReacted: true }
+                  : r
+              );
+              return { ...message, reactions: updatedReactions };
+            }
+          } else {
+            // Add new reaction
+            const newReaction: MessageReaction = {
+              type: reactionType,
+              count: 1,
+              userReacted: true
+            };
+            return { ...message, reactions: [...existingReactions, newReaction] };
+          }
+        }
+        return message;
+      })
+    }));
   };
 
   const handleShareConversation = (id?: string) => {
@@ -471,6 +608,31 @@ const App: React.FC = () => {
       <div className="relative min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors overflow-hidden">
         <ParticleBackground preset={settings.particlePreset || 'geometric'} />
         <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onSignIn={handleSignIn} onSignUp={handleSignUp} isLoading={authState.isLoading} error={authState.error} />
+        <ConversationSearch 
+          conversations={conversations}
+          currentConversationId={currentConversationId}
+          onSelectConversation={handleSelectConversation}
+          onSelectMessage={handleSelectMessage}
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+        />
+        <ExportModal
+          isOpen={isExportOpen}
+          onClose={() => setIsExportOpen(false)}
+          conversations={conversations}
+          selectedConversation={currentConversationId ? conversations.find(c => c.id === currentConversationId) : undefined}
+        />
+        <FileUpload
+          isVisible={isFileUploadOpen}
+          onClose={() => setIsFileUploadOpen(false)}
+          onFileUpload={handleFileUpload}
+        />
+        <SmartSuggestions
+        messages={chatState.messages}
+        onSuggestionClick={handleSmartSuggestion}
+        isVisible={showSmartSuggestions && chatState.messages.length > 0}
+        onClose={() => setShowSmartSuggestions(false)}
+      />
         {isDesktop && (
           <div className={`fixed left-0 top-0 h-full z-40 transition-all duration-300 ${isSidebarOpen ? 'w-80' : 'w-0'} overflow-hidden`}>
             <ConversationSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} conversations={conversations} currentConversationId={currentConversationId} onSelectConversation={handleSelectConversation} onNewConversation={handleNewConversation} onDeleteConversation={handleDeleteConversation} onShareConversation={handleShareConversation} isDesktop={isDesktop} />
@@ -482,17 +644,17 @@ const App: React.FC = () => {
         <div className={`h-screen flex flex-col transition-all duration-300 ${isDesktop && isSidebarOpen ? 'ml-80' : ''}`}>
           {/* Fixed Header */}
           <div className="flex-shrink-0 z-30">
-            <Header onSettingsClick={() => setIsSettingsOpen(true)} onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} onShareConversation={() => handleShareConversation()} user={authState.user} onSignIn={() => setIsAuthModalOpen(true)} onSignOut={handleSignOut} />
+            <Header onSettingsClick={() => setIsSettingsOpen(true)} onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} onShareConversation={() => handleShareConversation()} onSearchClick={() => setIsSearchOpen(true)} onUploadClick={() => setIsFileUploadOpen(true)} user={authState.user} onSignIn={() => setIsAuthModalOpen(true)} onSignOut={handleSignOut} />
           </div>
           
           {/* Auth Banner */}
           {shouldShowAuth && (
-            <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 p-4">
+            <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 p-4 sign-in-banner">
               <div className="max-w-4xl mx-auto flex items-center justify-between">
                 <p className="text-blue-800 dark:text-blue-200 text-sm">Sign in to save your conversations.</p>
                 <div className="flex items-center space-x-3">
-                  <button onClick={() => setIsAuthModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">Sign In</button>
-                  <button onClick={() => setShowSignInBanner(false)} className="p-1 rounded" title="Dismiss"><X className="h-4 w-4 text-blue-600" /></button>
+                  <button onClick={() => setIsAuthModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm signin-banner-button hover:bg-blue-700 transition-colors duration-200">Sign In</button>
+                  <button onClick={() => setShowSignInBanner(false)} className="p-1 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/30 transition-colors duration-200" title="Dismiss"><X className="h-4 w-4 text-blue-600" /></button>
                 </div>
               </div>
             </div>
@@ -505,13 +667,24 @@ const App: React.FC = () => {
                 message.id === typingMessageId ? (
                   <TypingMessage key={message.id} message={message} onComplete={handleTypingComplete} onTypingStop={handleTypingStop} stopTypingRef={stopTypingRef} />
                 ) : (
-                  <ChatMessage key={message.id} message={message} onRegenerate={!typingMessageId && index === chatState.messages.length - 1 ? handleRegenerate : undefined} onRemove={handleRemoveMessage} voiceEnabled={settings.voiceEnabled} voiceSettings={{ selectedVoice: settings.selectedVoice, voiceSpeed: settings.voiceSpeed, voicePitch: settings.voicePitch }} selectedLogo={settings.selectedLogo} />
+                  <ChatMessage key={message.id} message={message} onRegenerate={!typingMessageId && index === chatState.messages.length - 1 ? handleRegenerate : undefined} onRemove={handleRemoveMessage} onReaction={handleMessageReaction} voiceEnabled={settings.voiceEnabled} voiceSettings={{ selectedVoice: settings.selectedVoice, voiceSpeed: settings.voiceSpeed, voicePitch: settings.voicePitch }} selectedLogo={settings.selectedLogo} />
                 )
               ))}
               {(chatState.isLoading || chatState.isGeneratingImage) && <TypingIndicator message={chatState.isGeneratingImage ? "Generating image..." : "Thinking..."} />}
               {chatState.error && <ErrorMessage message={chatState.error} onRetry={handleRetry} />}
               <div ref={messagesEndRef} />
             </div>
+            
+            {/* Floating Smart Suggestions Button */}
+            {chatState.messages.length > 0 && (
+              <button
+                onClick={() => setShowSmartSuggestions(!showSmartSuggestions)}
+                className="fixed bottom-24 right-4 md:right-8 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 z-30"
+                title="Smart Suggestions (Ctrl/Cmd + L)"
+              >
+                <Sparkles className="h-5 w-5" />
+              </button>
+            )}
           </div>
           
           {/* Fixed Chat Input */}

@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { Bot, User, Volume2, VolumeX, RotateCcw, Image, X, Share2 } from 'lucide-react';
-import { Message } from '../types/chat';
+import { Message, MessageReaction } from '../types/chat';
 import { VoiceService } from '../services/voiceService';
 import AttachmentPreview from './AttachmentPreview';
 import ImageMessage from './ImageMessage';
 import MessageContent from './MessageContent';
 import LogoRenderer, { LogoType } from './LogoRenderer';
+import MessageReactions from './MessageReactions';
+import MathRenderer from './MathRenderer';
 
 interface ChatMessageProps {
   message: Message;
   onRegenerate?: () => void;
   onRemove?: (messageId: string) => void;
+  onReaction?: (messageId: string, reactionType: MessageReaction['type']) => void;
   voiceEnabled: boolean;
   voiceSettings?: {
     selectedVoice: string;
@@ -27,6 +30,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   message, 
   onRegenerate, 
   onRemove,
+  onReaction,
   voiceEnabled, 
   voiceSettings,
   selectedLogo
@@ -69,8 +73,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     }
   };
 
+  const handleReaction = (reactionType: MessageReaction['type']) => {
+    if (onReaction) {
+      onReaction(message.id, reactionType);
+    }
+  };
+
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-6 animate-fade-in group`}>
+    <div id={`message-${message.id}`} className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-6 animate-fade-in group`}>
       <div className={`flex ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start space-x-3 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-2xl`}>
         <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center shadow-lg overflow-hidden ${
           isUser 
@@ -120,6 +130,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             
             {!isUser && (
               <div className="flex items-center justify-end space-x-1 mt-3 opacity-100 md:opacity-0 md:group-hover/chat-bubble:opacity-100 transition-opacity">
+                <MessageReactions 
+                  reactions={message.reactions}
+                  onReaction={handleReaction}
+                  isUser={isUser}
+                />
                 <button
                   onClick={handleShare}
                   className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${

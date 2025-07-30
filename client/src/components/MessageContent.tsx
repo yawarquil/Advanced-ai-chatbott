@@ -1,5 +1,6 @@
 import React from 'react';
 import CodeBlock from './CodeBlock';
+import MathRenderer from './MathRenderer';
 
 interface MessageContentProps {
   text: string;
@@ -135,8 +136,108 @@ const MessageContent: React.FC<MessageContentProps> = ({ text }) => {
     return groupedLines;
   };
 
-  // Process inline markdown (bold, italic, links, inline code)
+  // Process inline markdown (bold, italic, links, inline code, math)
   const processInlineMarkdown = (text: string) => {
+    const parts = [];
+    let lastIndex = 0;
+    
+    // Check for LaTeX math first (block math: $$...$$ or \[...\])
+    const blockMathRegex = /\$\$([^$]+)\$\$|\\\[([^\]]+)\\\]/g;
+    let match;
+    
+    while ((match = blockMathRegex.exec(text)) !== null) {
+      // Add text before math
+      if (match.index > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: text.slice(lastIndex, match.index)
+        });
+      }
+
+      // Add block math
+      const mathContent = match[1] || match[2];
+      parts.push({
+        type: 'block-math',
+        content: mathContent
+      });
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push({
+        type: 'text',
+        content: text.slice(lastIndex)
+      });
+    }
+
+    // Process each part for inline math and other formatting
+    return parts.map((part, index) => {
+      if (part.type === 'text') {
+        return processInlineMathAndFormatting(part.content, index);
+      } else if (part.type === 'block-math') {
+        return (
+          <div key={index} className="my-4">
+            <MathRenderer content={`$${part.content}$`} isBlock={true} />
+          </div>
+        );
+      }
+      return null;
+    });
+  };
+
+  // Process inline math and other formatting
+  const processInlineMathAndFormatting = (text: string, baseKey: string | number) => {
+    const parts = [];
+    let lastIndex = 0;
+    
+    // Check for inline LaTeX math ($...$ or \(...\))
+    const inlineMathRegex = /\$([^$\n]+)\$|\\\(([^)]+)\\\)/g;
+    let match;
+    
+    while ((match = inlineMathRegex.exec(text)) !== null) {
+      // Add text before math
+      if (match.index > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: text.slice(lastIndex, match.index)
+        });
+      }
+
+      // Add inline math
+      const mathContent = match[1] || match[2];
+      parts.push({
+        type: 'inline-math',
+        content: mathContent
+      });
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push({
+        type: 'text',
+        content: text.slice(lastIndex)
+      });
+    }
+
+    // Process each part for other formatting
+    return parts.map((part, index) => {
+      if (part.type === 'text') {
+        return processBoldAndItalic(part.content, `${baseKey}-text-${index}`);
+      } else if (part.type === 'inline-math') {
+        return (
+          <MathRenderer key={`${baseKey}-math-${index}`} content={`$${part.content}$`} isBlock={false} />
+        );
+      }
+      return null;
+    });
+  };
+
+  // Process bold and italic formatting
+  const processBoldAndItalic = (text: string, baseKey: string | number) => {
     const parts = [];
     let lastIndex = 0;
     
@@ -174,11 +275,11 @@ const MessageContent: React.FC<MessageContentProps> = ({ text }) => {
     // Process italic and inline code in each part
     return parts.map((part, index) => {
       if (part.type === 'text') {
-        return processInlineCodeAndItalic(part.content, index);
+        return processInlineCodeAndItalic(part.content, `${baseKey}-text-${index}`);
       } else if (part.type === 'bold') {
         return (
-          <strong key={index} className="font-bold text-[var(--text-primary)]">
-            {processInlineCodeAndItalic(part.content, `bold-${index}`)}
+          <strong key={`${baseKey}-bold-${index}`} className="font-bold text-[var(--text-primary)]">
+            {processInlineCodeAndItalic(part.content, `${baseKey}-bold-${index}`)}
           </strong>
         );
       }

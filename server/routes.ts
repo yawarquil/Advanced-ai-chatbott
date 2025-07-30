@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { ApifyClient } from 'apify-client';
 import { 
   insertUserSchema, 
   loginUserSchema,
@@ -33,6 +34,66 @@ const authenticateToken = async (req: any, res: any, next: any) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Craiyon (DALL-E Mini) image generation endpoint
+  app.post("/api/images/craiyon", async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      
+      if (!prompt) {
+        return res.status(400).json({ message: "Prompt is required" });
+      }
+      
+      const apifyApiKey = process.env.APIFY_API_KEY || process.env.VITE_APIFY_API_KEY || '';
+      
+      if (!apifyApiKey) {
+        return res.status(500).json({ message: "Apify API key not configured" });
+      }
+      
+      // Initialize the ApifyClient with API token
+      const client = new ApifyClient({
+        token: apifyApiKey,
+      });
+      
+      // Prepare Actor input for Craiyon (formerly DALL-E Mini)
+      const input = {
+        "prompts": [prompt],
+        "excludeList": "",
+        "generationType": "type_1",
+        "imageSize": "size_1",
+        "concurrentRequests": 1,
+        "proxyConfiguration": {
+          "useApifyProxy": true,
+          "apifyProxyGroups": []
+        }
+      };
+      
+      console.log('Generating image with Craiyon (formerly DALL-E Mini)...');
+      
+      // Run the Actor and wait for it to finish
+      const run = await client.actor("lkxNVJpjkDeqYBluE").call(input);
+      
+      // Fetch results from the run's dataset
+      const { items } = await client.dataset(run.defaultDatasetId).listItems();
+      
+      if (items && items.length > 0) {
+        // Check if the response has the expected structure
+        if (items[0].images && Array.isArray(items[0].images) && items[0].images.length > 0) {
+          // Return the first image URL from the results
+          return res.json({ imageUrl: items[0].images[0] });
+        } else if (items[0].imageUrls && Array.isArray(items[0].imageUrls) && items[0].imageUrls.length > 0) {
+          // Alternative structure sometimes returned by the API
+          return res.json({ imageUrl: items[0].imageUrls[0] });
+        }
+      }
+      
+      // If we reach here, no valid images were found
+      return res.status(404).json({ message: "No images generated" });
+    } catch (error) {
+      console.error('Craiyon API error:', error);
+      res.status(500).json({ message: "Failed to generate image", error: (error as Error).message });
+    }
+  });
+  
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {

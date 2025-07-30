@@ -1,3 +1,9 @@
+export interface MessageReaction {
+  type: 'like' | 'dislike' | 'love' | 'laugh' | 'wow' | 'sad' | 'angry';
+  count: number;
+  userReacted: boolean;
+}
+
 export interface Message {
   id: string;
   type: 'user' | 'ai';
@@ -7,6 +13,7 @@ export interface Message {
   attachments?: Attachment[];
   imageUrl?: string; // For AI-generated images
   imagePrompt?: string; // Original prompt for image generation
+  reactions?: MessageReaction[];
 }
 
 export interface ChatState {

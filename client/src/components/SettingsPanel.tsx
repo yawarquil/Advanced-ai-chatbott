@@ -39,6 +39,25 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     { key: 'sans-serif', name: 'Sans-Serif' },
     { key: 'serif', name: 'Serif' },
     { key: 'monospace', name: 'Monospace' },
+    { key: 'roboto', name: 'Roboto' },
+    { key: 'open-sans', name: 'Open Sans' },
+    { key: 'lato', name: 'Lato' },
+    { key: 'montserrat', name: 'Montserrat' },
+    { key: 'raleway', name: 'Raleway' },
+    { key: 'poppins', name: 'Poppins' },
+    { key: 'ubuntu', name: 'Ubuntu' },
+    { key: 'playfair', name: 'Playfair Display' },
+    { key: 'merriweather', name: 'Merriweather' },
+    { key: 'source-code-pro', name: 'Source Code Pro' },
+    { key: 'fira-code', name: 'Fira Code' },
+    { key: 'jetbrains-mono', name: 'JetBrains Mono' },
+    { key: 'comic-sans', name: 'Comic Sans MS' },
+    { key: 'impact', name: 'Impact' },
+    { key: 'georgia', name: 'Georgia' },
+    { key: 'courier-new', name: 'Courier New' },
+    { key: 'times-new-roman', name: 'Times New Roman' },
+    { key: 'verdana', name: 'Verdana' },
+    { key: 'tahoma', name: 'Tahoma' },
   ];
 
   const imageProviders = [
@@ -48,7 +67,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       { key: 'pixabay', name: 'Pixabay Photos' },
       { key: 'pexels', name: 'Pexels Photos' },
       { key: 'lorem-picsum', name: 'Lorem Picsum' },
-      { key: 'dalle-mini', name: 'DALL-E Mini' },
+      { key: 'dalle-mini', name: 'Craiyon (formerly DALL-E Mini) ⚠️' },
   ];
 
   const hfImageModels = [
@@ -200,17 +219,60 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
                   Font Family
                 </label>
-                <select
-                  value={settings.fontFamily}
-                  onChange={(e) => onSettingsChange({ fontFamily: e.target.value })}
-                  className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                >
-                  {fonts.map((font) => (
-                    <option key={font.key} value={font.key}>
-                      {font.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={settings.fontFamily}
+                    onChange={(e) => onSettingsChange({ fontFamily: e.target.value })}
+                    className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 appearance-none pr-8"
+                    style={{ fontFamily: settings.fontFamily }}
+                  >
+                    <optgroup label="System Fonts">
+                      {fonts.slice(0, 3).map((font) => (
+                        <option key={font.key} value={font.key} style={{ fontFamily: font.key }}>
+                          {font.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Sans-Serif Fonts">
+                      {fonts.slice(3, 10).map((font) => (
+                        <option key={font.key} value={font.key} style={{ fontFamily: `var(--font-${font.key})` }}>
+                          {font.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Serif Fonts">
+                      {fonts.slice(10, 13).map((font) => (
+                        <option key={font.key} value={font.key} style={{ fontFamily: `var(--font-${font.key})` }}>
+                          {font.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Monospace Fonts">
+                      {fonts.slice(13, 16).map((font) => (
+                        <option key={font.key} value={font.key} style={{ fontFamily: `var(--font-${font.key})` }}>
+                          {font.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Other Fonts">
+                      {fonts.slice(16).map((font) => (
+                        <option key={font.key} value={font.key} style={{ fontFamily: `var(--font-${font.key})` }}>
+                          {font.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                  </div>
+                </div>
+                <div className="mt-2 p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
+                  <p className="text-sm" style={{ fontFamily: settings.fontFamily === 'sans-serif' || settings.fontFamily === 'serif' || settings.fontFamily === 'monospace' ? settings.fontFamily : `var(--font-${settings.fontFamily})` }}>
+                    Sample text in {fonts.find(f => f.key === settings.fontFamily)?.name}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

@@ -1,0 +1,76 @@
+/* Mobile-specific styles for buttons and fonts */
+
+/* Mobile button styles - rectangular with curved corners */
+@media (max-width: 768px) {
+  /* Login/Sign In button in header */
+  .header-login-button,
+  .header-button,
+  .signin-banner-button {
+    border-radius: 12px !important; /* Rectangular with curved corners */
+    transition: all 0.3s ease;
+  }
+
+  /* Sign-in banner button */
+  .sign-in-banner button {
+    border-radius: 12px !important;
+  }
+
+  /* Settings, Share, Menu buttons in header */
+  header .relative button {
+    border-radius: 10px !important;
+  }
+
+  /* Auth modal buttons */
+  .auth-modal button {
+    border-radius: 12px !important;
+  }
+
+  /* Input fields in auth modal */
+  .auth-modal input {
+    border-radius: 12px !important;
+  }
+}
+
+/* Additional font families */
+:root {
+  --font-roboto: 'Roboto', sans-serif;
+  --font-open-sans: 'Open Sans', sans-serif;
+  --font-lato: 'Lato', sans-serif;
+  --font-montserrat: 'Montserrat', sans-serif;
+  --font-raleway: 'Raleway', sans-serif;
+  --font-poppins: 'Poppins', sans-serif;
+  --font-ubuntu: 'Ubuntu', sans-serif;
+  --font-playfair: 'Playfair Display', serif;
+  --font-merriweather: 'Merriweather', serif;
+  --font-source-code-pro: 'Source Code Pro', monospace;
+  --font-fira-code: 'Fira Code', monospace;
+  --font-jetbrains-mono: 'JetBrains Mono', monospace;
+  --font-comic-sans: 'Comic Sans MS', cursive;
+  --font-impact: 'Impact', sans-serif;
+  --font-georgia: 'Georgia', serif;
+  --font-courier-new: 'Courier New', monospace;
+  --font-times-new-roman: 'Times New Roman', serif;
+  --font-verdana: 'Verdana', sans-serif;
+  --font-tahoma: 'Tahoma', sans-serif;
+}
+
+/* Font application classes */
+.font-roboto { font-family: var(--font-roboto) !important; }
+.font-open-sans { font-family: var(--font-open-sans) !important; }
+.font-lato { font-family: var(--font-lato) !important; }
+.font-montserrat { font-family: var(--font-montserrat) !important; }
+.font-raleway { font-family: var(--font-raleway) !important; }
+.font-poppins { font-family: var(--font-poppins) !important; }
+.font-ubuntu { font-family: var(--font-ubuntu) !important; }
+.font-playfair { font-family: var(--font-playfair) !important; }
+.font-merriweather { font-family: var(--font-merriweather) !important; }
+.font-source-code-pro { font-family: var(--font-source-code-pro) !important; }
+.font-fira-code { font-family: var(--font-fira-code) !important; }
+.font-jetbrains-mono { font-family: var(--font-jetbrains-mono) !important; }
+.font-comic-sans { font-family: var(--font-comic-sans) !important; }
+.font-impact { font-family: var(--font-impact) !important; }
+.font-georgia { font-family: var(--font-georgia) !important; }
+.font-courier-new { font-family: var(--font-courier-new) !important; }
+.font-times-new-roman { font-family: var(--font-times-new-roman) !important; }
+.font-verdana { font-family: var(--font-verdana) !important; }
+.font-tahoma { font-family: var(--font-tahoma) !important; }

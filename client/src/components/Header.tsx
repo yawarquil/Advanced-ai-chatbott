@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, MessageCircle, Settings, Menu, User, LogOut, Share2 } from 'lucide-react';
+import { Bot, MessageCircle, Settings, Menu, User, LogOut, Share2, Search, Upload } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
 import { User as UserType } from '../types/chat';
 import LogoRenderer from './LogoRenderer';
@@ -8,6 +8,8 @@ interface HeaderProps {
   onSettingsClick: () => void;
   onMenuClick: () => void;
   onShareConversation?: () => void;
+  onSearchClick?: () => void;
+  onUploadClick?: () => void;
   user?: UserType | null;
   onSignIn?: () => void;
   onSignOut?: () => void;
@@ -17,6 +19,8 @@ const Header: React.FC<HeaderProps> = ({
   onSettingsClick,
   onMenuClick,
   onShareConversation,
+  onSearchClick,
+  onUploadClick,
   user,
   onSignIn,
   onSignOut
@@ -52,29 +56,23 @@ const Header: React.FC<HeaderProps> = ({
       <div className="relative flex items-center space-x-2 sm:space-x-6">
         <button
           onClick={onMenuClick}
-          className="relative bg-gradient-to-br from-slate-700/50 to-slate-800/70 dark:from-gray-700/60 dark:to-gray-800/80 p-2 sm:p-3 rounded-xl sm:rounded-2xl hover:from-slate-600/60 hover:to-slate-700/80 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 group/menu touch-manipulation"
+          className="relative group/logo touch-manipulation"
           title="Toggle chat history"
         >
-          <Menu className="h-4 w-4 sm:h-5 sm:w-5 text-slate-300 dark:text-gray-300 group-hover/menu:text-white transition-colors" />
-          <div className="absolute inset-0 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 opacity-0 group-hover/menu:opacity-100 transition-opacity duration-300"></div>
-        </button>
-        
-        <div className="relative">
-          <div className="absolute -inset-1 sm:-inset-2 bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500 rounded-full opacity-20 blur animate-pulse"></div>
-          <div className="relative bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 p-0.5 rounded-xl sm:rounded-2xl shadow-2xl flex items-center justify-center transform hover:scale-110 transition-transform duration-300 overflow-hidden">
+          <div className="absolute -inset-1 sm:-inset-2 bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500 rounded-full opacity-20 blur animate-pulse group-hover/logo:opacity-40 transition-opacity duration-300"></div>
+          <div className="relative bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 p-0.5 rounded-xl sm:rounded-2xl shadow-2xl flex items-center justify-center transform hover:scale-110 transition-transform duration-300 overflow-hidden group-hover/logo:shadow-3xl">
             <LogoRenderer 
               logoType={settings.selectedLogo || 'logo'}
               className="h-10 w-10 sm:h-14 sm:w-14"
             />
           </div>
-        </div>
+        </button>
         
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center space-x-1 sm:space-x-3">
             <h1 className="text-lg sm:text-3xl font-black tracking-tight bg-gradient-to-r from-slate-200 via-white to-slate-300 dark:from-white dark:via-gray-100 dark:to-slate-200 bg-clip-text text-transparent flex items-center gap-1 sm:gap-2">
-              <span className="hidden xs:inline">Nexus</span>
-              <span className="xs:hidden">N</span>
-              <span className="text-xs sm:text-sm font-bold bg-gradient-to-r from-blue-400 to-purple-400 text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-lg animate-bounce">AI</span>
+              <span>Nexus</span>
+              <span className="text-xs sm:text-sm font-bold bg-gradient-to-r from-blue-400 to-purple-400 text-white px-1 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-lg animate-bounce">AI</span>
             </h1>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-2 mt-0.5 sm:mt-1">
@@ -97,11 +95,31 @@ const Header: React.FC<HeaderProps> = ({
         </div>
         
         <div className="flex items-center space-x-1 sm:space-x-2">
+          {onSearchClick && (
+            <button
+              onClick={onSearchClick}
+              className="relative bg-gradient-to-br from-slate-700/50 to-slate-800/70 dark:from-gray-700/60 dark:to-gray-800/80 p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:from-slate-600/60 hover:to-slate-700/80 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 group/search touch-manipulation header-button"
+              title="Search conversations"
+            >
+              <Search className="h-4 w-4 text-slate-300 dark:text-gray-300 group-hover/search:text-green-300 transition-colors" />
+              <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 opacity-0 group-hover/search:opacity-100 transition-opacity duration-300"></div>
+            </button>
+          )}
+          {onUploadClick && (
+            <button
+              onClick={onUploadClick}
+              className="relative bg-gradient-to-br from-slate-700/50 to-slate-800/70 dark:from-gray-700/60 dark:to-gray-800/80 p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:from-slate-600/60 hover:to-slate-700/80 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 group/upload touch-manipulation header-button"
+              title="Upload file"
+            >
+              <Upload className="h-4 w-4 text-slate-300 dark:text-gray-300 group-hover/upload:text-orange-300 transition-colors" />
+              <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 opacity-0 group-hover/upload:opacity-100 transition-opacity duration-300"></div>
+            </button>
+          )}
           {onShareConversation && (
             <button
               onClick={onShareConversation}
-              className="relative bg-gradient-to-br from-slate-700/50 to-slate-800/70 dark:from-gray-700/60 dark:to-gray-800/80 p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:from-slate-600/60 hover:to-slate-700/80 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 group/share touch-manipulation"
-              title="Share current conversation"
+              className="relative bg-gradient-to-br from-slate-700/50 to-slate-800/70 dark:from-gray-700/60 dark:to-gray-800/80 p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:from-slate-600/60 hover:to-slate-700/80 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 group/share touch-manipulation header-button"
+              title="Share conversation"
             >
               <Share2 className="h-4 w-4 text-slate-300 dark:text-gray-300 group-hover/share:text-blue-300 transition-colors" />
               <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 opacity-0 group-hover/share:opacity-100 transition-opacity duration-300"></div>
@@ -110,7 +128,7 @@ const Header: React.FC<HeaderProps> = ({
           
           <button
             onClick={onSettingsClick}
-            className="relative bg-gradient-to-br from-slate-700/50 to-slate-800/70 dark:from-gray-700/60 dark:to-gray-800/80 p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:from-slate-600/60 hover:to-slate-700/80 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 group/settings touch-manipulation"
+            className="relative bg-gradient-to-br from-slate-700/50 to-slate-800/70 dark:from-gray-700/60 dark:to-gray-800/80 p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:from-slate-600/60 hover:to-slate-700/80 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 group/settings touch-manipulation header-button"
             title="Settings"
           >
             <Settings className="h-4 w-4 text-slate-300 dark:text-gray-300 group-hover/settings:text-purple-300 transition-colors" />
@@ -130,7 +148,7 @@ const Header: React.FC<HeaderProps> = ({
               </div>
               <button
                 onClick={onSignOut}
-                className="relative bg-gradient-to-br from-red-600/60 to-red-700/80 p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:from-red-500/70 hover:to-red-600/90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 group/logout touch-manipulation"
+                className="relative bg-gradient-to-br from-red-600/60 to-red-700/80 p-2 sm:p-2.5 rounded-lg sm:rounded-xl hover:from-red-500/70 hover:to-red-600/90 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 group/logout touch-manipulation header-button"
                 title="Sign out"
               >
                 <LogOut className="h-4 w-4 text-red-100 group-hover/logout:text-white transition-colors" />
@@ -139,7 +157,7 @@ const Header: React.FC<HeaderProps> = ({
           ) : onSignIn ? (
             <button
               onClick={onSignIn}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl hover:from-blue-500 hover:to-purple-500 transition-all duration-300 text-xs sm:text-sm font-bold shadow-lg hover:shadow-xl transform hover:scale-105 ml-1 sm:ml-3 touch-manipulation"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl hover:from-blue-500 hover:to-purple-500 transition-all duration-300 text-xs sm:text-sm font-bold shadow-lg hover:shadow-xl transform hover:scale-105 ml-1 sm:ml-3 touch-manipulation header-login-button"
             >
               <span className="hidden xs:inline">Sign In</span>
               <span className="xs:hidden">Login</span>

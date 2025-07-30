@@ -520,3 +520,47 @@ html {
 .hide-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, and Opera */
 }
+
+/* Message highlight animation */
+.highlight-message {
+  animation: highlightPulse 3s ease-in-out;
+}
+
+@keyframes highlightPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.3);
+  }
+}
+
+/* Math content styling */
+.math-content {
+  display: inline;
+}
+
+.math-content .katex {
+  font-size: 1em;
+}
+
+.math-content .katex-display {
+  margin: 1em 0;
+  text-align: center;
+}
+
+/* Smart suggestions animation */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

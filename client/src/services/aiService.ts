@@ -295,6 +295,56 @@ export class PerplexityProvider implements AIProvider {
   }
 }
 
+// Claude Provider
+export class ClaudeProvider implements AIProvider {
+  private apiKeys: string[];
+  private currentApiKeyIndex = 0;
+  private readonly apiUrl = 'https://api.anthropic.com/v1/messages';
+  private readonly model = 'claude-3-opus-20240229';
+
+  constructor() {
+    this.apiKeys = (import.meta.env.VITE_CLAUDE_API_KEYS || '').split(',').filter(Boolean);
+  }
+
+  getName(): string {
+    return 'Claude 3 Opus';
+  }
+
+  async generateResponse(message: string, attempts = 0): Promise<string> {
+    if (this.apiKeys.length === 0) throw new Error('Claude API key(s) not configured.');
+    if (attempts >= this.apiKeys.length) throw new Error(`All Claude API keys failed.`);
+    
+    const apiKey = this.apiKeys[this.currentApiKeyIndex];
+
+    try {
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [{ role: 'user', content: message }],
+          max_tokens: 4000
+        }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      const data = await response.json();
+      if (!data.content?.[0]?.text) throw new Error('Invalid Claude response');
+      return data.content[0].text;
+
+    } catch (error) {
+      console.warn(`Claude key failed, trying next...`);
+      this.currentApiKeyIndex = (this.currentApiKeyIndex + 1) % this.apiKeys.length;
+      return this.generateResponse(message, attempts + 1);
+    }
+  }
+}
+
 // Export model configuration
 export interface AIModel {
   key: string;
@@ -317,6 +367,12 @@ class AIService {
       this.providers.set('gemini', gemini);
       this.availableModels.push({ key: 'gemini', name: gemini.getName(), provider: 'gemini' });
     } catch(e) { console.error("Failed to initialize Gemini:", e); }
+
+    try {
+      const claude = new ClaudeProvider();
+      this.providers.set('claude', claude);
+      this.availableModels.push({ key: 'claude', name: claude.getName(), provider: 'claude' });
+    } catch(e) { console.error("Failed to initialize Claude:", e); }
 
     try {
       const groqLlama70b = new GroqProvider('llama-3.3-70b');

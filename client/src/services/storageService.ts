@@ -34,6 +34,15 @@ export class StorageService {
       voicePitch: 1,
       autoScroll: true,
       persistHistory: true,
+      imageGeneration: true,
+      fontSize: 14,
+      fontFamily: 'sans-serif',
+      imageModel: 'pollinations',
+      imageModelHf: 'stable-diffusion-xl-base-1.0',
+      particlePreset: 'geometric',
+      selectedLogo: 'logo',
+      clickSoundsEnabled: true,
+      taskCompleteSoundsEnabled: true,
     };
   }
 
